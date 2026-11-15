@@ -5,17 +5,26 @@ service cloud.firestore {
     function ownerUid() { return get(/databases/$(database)/documents/meta/config).data.ownerUid; }
     function isOwner() { return signedIn() && exists(/databases/$(database)/documents/meta/config) && ownerUid() == request.auth.uid; }
 
-    // 주인 정보: 처음 연 사람이 한 번만 만들 수 있고, 이후엔 못 바꿈 (바꾸려면 콘솔에서 문서 삭제)
+    // 주인 정보: 리리 비번 계정(이메일/비밀번호 로그인)만 한 번 만들 수 있고, 이후엔 못 바꿈
     match /meta/config {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn() && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.token.email == 'riri@riri-playground.app'
+        && request.resource.data.ownerUid == request.auth.uid;
       allow update, delete: if false;
     }
 
     // 캐릭터
     match /chars/{id} {
       allow read: if signedIn();
-      allow create, delete: if isOwner();
+      // 주인은 다 되고, 다른 사람은 내 uid 이름으로 내 캐릭터 하나만 만들고 지울 수 있음
+      allow create: if isOwner() || (
+        signedIn() && id == request.auth.uid
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.keys().hasOnly(['name', 'nt', 'look', 'status', 'st', 'owner', 'order'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 12
+      );
+      allow delete: if isOwner() || (signedIn() && id != 'riri' && resource.data.owner == request.auth.uid);
       allow update: if isOwner() || (
         signedIn() && id != 'riri'
         // 주인 없는 캐릭터거나 내 캐릭터일 때만
@@ -38,7 +47,8 @@ service cloud.firestore {
     // 접속자 수
     match /presence/{uid} {
       allow read: if signedIn();
-      allow write: if signedIn() && uid == request.auth.uid;
+      allow write: if signedIn() && uid == request.auth.uid
+        && (request.resource == null || request.resource.data.keys().hasOnly(['seen', 'name']));
     }
   }
 }

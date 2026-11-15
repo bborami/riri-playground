@@ -4,6 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>총무 오피스</title>
+<meta name="description" content="지금 다들 뭐 하는지 한눈에 보여요 · 업무중 · 탕비실 · 카페 · 화장실 · 옥상 · 월루중 · 연차">
+<meta property="og:type" content="website">
+<meta property="og:title" content="🏢 총무 오피스">
+<meta property="og:description" content="지금 다들 뭐 하는지 한눈에 보여요">
+<meta property="og:url" content="https://bborami.github.io/riri-playground/">
+<meta property="og:image" content="https://bborami.github.io/riri-playground/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -87,6 +100,9 @@
   .foot button{flex:1;font-family:inherit;font-size:13px;border:none;border-radius:14px;padding:9px 6px;background:#f1e8fb;color:var(--ink);cursor:pointer}
   .foot button.on{background:#c9efd8}
   .foot button.warn{background:#ffd3dc}
+  .joinBtn{margin-top:8px;width:100%;font-family:inherit;font-size:14px;font-weight:700;border:none;border-radius:14px;padding:11px 8px;background:linear-gradient(135deg,#d9c6ff,#ffc9de);color:var(--ink);cursor:pointer}
+  .joinBtn:disabled{opacity:.55;cursor:default}
+  .joinNote{font-size:12px;color:var(--sub,#8a80a0);margin-top:6px}
   #loading{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;color:var(--sub)}
   @media (max-width:820px){
     #app{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
@@ -106,7 +122,7 @@
     <div id="toasts"></div>
   </div>
   <aside id="panel">
-    <div class="sec"><h2>내 캐릭터</h2><select id="meSel"></select></div>
+    <div class="sec"><h2>내 캐릭터</h2><select id="meSel"></select><button class="joinBtn" id="joinBtn" hidden>➕ 내 캐릭터 만들기</button><div class="joinNote" id="joinNote" hidden></div></div>
     <div class="sec">
       <div class="card"><div class="ph" id="selPh"></div><div><div class="nmrow"><span class="nm" id="selName">-</span><button class="mini" id="renameBtn" hidden>✏️ 이름 바꾸기</button></div><div class="st" id="selStatus">-</div></div></div>
       <form class="renameBox" id="renameBox" hidden><input id="nameIn" maxlength="12" placeholder="새 이름 (최대 12자)" autocomplete="off"><button type="submit">저장</button><button type="button" class="cancel" id="renameCancel">취소</button></form>
@@ -116,9 +132,12 @@
     </div>
     <div class="sec"><h2>구역별 인원</h2><div class="counts" id="counts"></div></div>
     <div id="list"></div>
+    <form class="renameBox" id="ririBox" hidden style="padding:8px 12px 0"><input id="ririPw" type="password" placeholder="리리 비밀번호" autocomplete="current-password"><button type="submit">로그인</button><button type="button" class="cancel" id="ririCancel">취소</button></form>
     <div class="foot">
+      <button id="ririBtn" hidden>👑 리리 로그인</button>
       <button id="simBtn">🤖 자동 시뮬레이션</button>
       <button id="regenBtn">🎲 새로 뽑기</button>
+      <button id="delBtn" hidden>🗑 캐릭터 지우기</button>
     </div>
   </aside>
 </div>
@@ -174,9 +193,9 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 stage.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
-camera.position.set(-2, 31, 33);
+camera.position.set(-3, 36, 41);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(5.8, 0, -4.6);
+controls.target.set(5.2, 0, -1.4);
 controls.enableDamping = true; controls.dampingFactor = .08;
 controls.minDistance = 14; controls.maxDistance = 75; controls.maxPolarAngle = 1.25; controls.minPolarAngle = .35;
 controls.update();
@@ -239,15 +258,14 @@ function tree(x,y,z,s=1){
 function rug(x,z,w,d,color,y=0){ const r = box(w,.04,d,color,.02); r.castShadow=false; put(world, r, x,y+.02,z); return r; }
 function wall(x,z,w,h,d,color,y=0){ return put(world, box(w,h,d,color,.04), x,y+h/2,z); }
 
-// --- 업무 구역 (책상 12개)
+// --- 업무 구역 (본관 책상 12개 + 별관 24개)
 const OFFICE = { clusters:[-6.6,-1.6], rows:[-1.1,.6,2.3] };
 rug(-4.1, .6, 10.6, 5.4, 0xefe6fd);
 const desks = []; // {seat:[x,z], ry, aisleX, via, screenMat}
-for (const cx of OFFICE.clusters) {
-  for (const rz of OFFICE.rows) {
-    // 가운데 칸막이
-    put(world, box(.08,.55,1.45,0xd9c8f6,.03), cx,.82,rz);
-    for (const side of [-1,1]) {
+function deskCluster(cx, rz, aisleOf){
+  // 가운데 칸막이
+  put(world, box(.08,.55,1.45,0xd9c8f6,.03), cx,.82,rz);
+  for (const side of [-1,1]) {
       const dx = cx + side*.42;
       const desk = new THREE.Group();
       put(desk, box(.8,.06,1.4,C.white,.02), 0,.6,0);
@@ -269,12 +287,27 @@ for (const cx of OFFICE.clusters) {
       put(chair, cyl(.2,.2,.03,0x6a6280,10), 0,.03,0);
       const chx = cx + side*1.22;
       put(world, chair, chx,0,rz);
-      const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
-      const via = aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3';
+      const [aisleX, via] = aisleOf(cx, side);
       desks.push({ seat:[chx, rz], ry: side < 0 ? Math.PI/2 : -Math.PI/2, aisleX, via, scrMat });
-    }
   }
 }
+for (const cx of OFFICE.clusters) for (const rz of OFFICE.rows) deskCluster(cx, rz, (cx, side) => {
+  const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
+  return [aisleX, aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3'];
+});
+// --- 업무 별관 (앞쪽 플랫폼, 책상 24개)
+const ANNEX = { clusters:[-6.6,-1.6,3.4], rows:[8.6,10.2,11.8,13.4], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
+platform(-11.5, 7.6, 7.0, 14.8, 0);
+rug(-2.0, 11.0, 17.4, 7.0, 0xefe6fd);
+for (const bx of [-4.1, 1.1]) {
+  for (let i=0;i<4;i++) put(world, box(1.2,.1,.32,C.wood,.03), bx, -.05, 5.75+i*.34);
+  for (const sx of [-.62,.62]) { put(world, box(.05,.05,1.5,C.woodDark,.02), bx+sx,.6,6.3); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,5.6); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,7.0); }
+}
+for (const [x,z,s] of [[-11,14.3,1],[7.1,14.3,.9],[7.1,7.5,.8],[-11,7.5,.85]]) tree(x,0,z,s);
+for (const cx of ANNEX.clusters) for (const rz of ANNEX.rows) deskCluster(cx, rz, (cx, side) => {
+  const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : cx === -1.6 ? (side < 0 ? -4.1 : 1.1) : (side < 0 ? 1.1 : 6.1);
+  return [aisleX, ANNEX.aisles[String(aisleX)]];
+});
 
 // --- 화장실
 rug(-8.1, -5.35, 5.9, 3.8, 0xdff4fb);
@@ -343,7 +376,7 @@ for (const [x,z] of [[10.6,-.3],[3.2,3.6],[-10.6,-1.8],[-10.6,3.8]]) { put(world
 put(world, box(.4,1.4,1.8,0xf2e6ff,.06), 10.95,.7,2.2);
 for (let i=0;i<9;i++) put(world, box(.25,.32,.12, pick([0xffb3c7,0xa9d8ff,0xffe08a,0xb9f0d0,0xd8c8ff]),.02), 10.85,.95-(i%3)*.4+.1, 1.55+Math.floor(i/3)*.18*3+ (i%3)*.12);
 // 나무
-for (const [x,z,s] of [[-11,5,1.1],[-9.6,5.1,.9],[11,5,1.1],[-11,-7.1,1],[4.6,5,.9],[7.6,5.1,1.1],[9.4,4.9,.8],[0.6,5.1,.8]]) tree(x,0,z,s);
+for (const [x,z,s] of [[-11,5,1.1],[-9.6,5.1,.9],[11,5,1.1],[-11,-7.1,1],[4.6,5,.9],[7.6,5.1,1.1],[9.4,4.9,.8],[2.6,5.1,.8]]) tree(x,0,z,s);
 
 // --- 고양이 놀이터 + 캣타워
 rug(7.3, 1.5, 6.2, 6.2, 0xfff1e4);
@@ -483,10 +516,11 @@ const NODES = {
   T0:[-8,0,-3.2], P0:[5,0,-3.2],
   S0:[STAIR.x,0,STAIR.z0+.15], S1:[STAIR.x,RY,STAIR.z1-.1], R0:[-2,RY,-11.2],
   BR1:[11.2,0,1.0], BR2:[13.8,0,1.0], C0:[17,0,-.4],
+  N1:[-9.1,0,7.6], N2:[-4.1,0,7.6], N3:[1.1,0,7.6], N4:[6.1,0,7.6],
   V0:[11.1,0,-2.65], V1:[11.1,0,-6.6], V2:[14.0,0,-6.6], V3:[17.35,0,-7.75],
 };
 const EDGES = [['F1','F2'],['F2','F3'],['F3','F4'],['B1','B2'],['B2','B3'],['B3','B4'],['F1','B1'],['F2','B2'],['F3','B3'],['F4','B4'],
-  ['F4','BR1'],['BR1','BR2'],['BR2','C0'],['B1','T0'],['B2','T0'],['B3','P0'],['B4','P0'],['B2','S0'],['B3','S0'],['S0','S1'],['S1','R0'],['B4','V0'],['V0','V1'],['V1','V2'],['V2','V3']];
+  ['F4','BR1'],['BR1','BR2'],['BR2','C0'],['B1','T0'],['B2','T0'],['B3','P0'],['B4','P0'],['B2','S0'],['B3','S0'],['S0','S1'],['S1','R0'],['B4','V0'],['F2','N2'],['F3','N3'],['N1','N2'],['N2','N3'],['N3','N4'],['V0','V1'],['V1','V2'],['V2','V3']];
 const ADJ = {}; for (const k in NODES) ADJ[k] = [];
 for (const [a,b] of EDGES){ const d = Math.hypot(NODES[a][0]-NODES[b][0], NODES[a][2]-NODES[b][2]); ADJ[a].push([b,d]); ADJ[b].push([a,d]); }
 function shortest(a,b){
@@ -831,7 +865,7 @@ function buildChars(list){
     m.root.traverse(o => { o.userData.charId = d.id; });
     charGroup.add(m.root);
     const tag = document.createElement('div'); tag.className = 'tag'; overlay.appendChild(tag);
-    const c = { ...d, m, tag, deskIdx: hashIdx(d.id, i), path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
+    const c = { ...d, m, tag, deskIdx: i, path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
     return c;
   });
   // 책상 중복 방지
@@ -927,7 +961,7 @@ function initSync(){
     if (!window.claude || typeof window.claude.use !== 'function') return;
     const room = await window.claude.use('room'); if (!room) return;
     room.on('sync', d => receive(d));
-    if (typeof room.onPeers === 'function') room.onPeers(p => { peerCount = Array.isArray(p) ? p.length : (p && typeof p === 'object' ? Object.keys(p).length : 1); updateConn(); });
+    if (typeof room.onPeers === 'function') room.onPeers(p => { peerCount = typeof p === 'number' ? p : Array.isArray(p) ? p.length : (p && typeof p === 'object' ? Object.keys(p).length : 1); updateConn(); });
     transports.push(m => { const r = room.emit('sync', m); if (r && r.catch) r.catch(() => {}); });
     roomOn = true; updateConn();
     try { const me = chars.find(c => c.id === meId); room.presence({ name: me ? me.name : '구경꾼' }); } catch(e){}
@@ -1235,7 +1269,15 @@ function renderPanel(full){
   $('roofActs').hidden = !sel || sel.status !== 'roof' || !ctl;
   $('lockNote').hidden = !sel || ctl;
   $('lockNote').textContent = !canWrite ? '🔒 보기 전용이라 상태를 바꿀 수 없어요' : '🔒 다른 분의 캐릭터라 상태를 바꿀 수 없어요';
-  $('regenBtn').hidden = dbMode && !isAdmin;
+  $('regenBtn').hidden = dbMode;
+  const others = chars.filter(c => c.id !== RIRI_ID).length;
+  const showJoin = dbMode && canWrite && !meId && myUid;
+  $('joinBtn').hidden = !showJoin; $('joinNote').hidden = !showJoin;
+  if (showJoin) { const full = others >= MAX_PEOPLE; $('joinBtn').disabled = full || joining;
+    $('joinBtn').textContent = joining ? '만드는 중…' : full ? `자리가 꽉 찼어요 (${MAX_PEOPLE}명)` : '➕ 내 캐릭터 만들기';
+    $('joinNote').textContent = full ? '누가 캐릭터를 지우면 자리가 생겨요' : `랜덤 캐릭터가 하나 생겨요 · 지금 ${others}/${MAX_PEOPLE}명`; }
+  $('delBtn').hidden = !(dbMode && sel && sel.id !== RIRI_ID && canWrite && (isAdmin || charOwner[sel.id] === myUid));
+  if (Date.now() - delArmed > 2500) $('delBtn').textContent = sel && charOwner[sel.id] === myUid ? '🗑 내 캐릭터 지우기' : '🗑 이 캐릭터 내보내기';
   $('simBtn').hidden = dbMode;
   if (!sel || renameFor !== sel.id) { $('renameBox').hidden = true; renameFor = null; }
   if (!sel) { $('selName').textContent = '캐릭터를 골라주세요'; $('selStatus').textContent = '사무실에서 캐릭터를 누르거나 목록에서 선택'; grid.innerHTML=''; $('selPh').outerHTML = '<div class="ph" id="selPh"></div>'; return; }
@@ -1249,6 +1291,33 @@ function renderPanel(full){
   }
 }
 let renameFor = null;
+// 리리 비밀번호 로그인 (Firebase 버전에서만)
+if (window.claude && window.claude.ririLogin) {
+  const btn = $('ririBtn'); let amRiri = false;
+  window.claude.isRiri().then(v => { amRiri = v; btn.hidden = false; btn.textContent = v ? '👑 리리 로그아웃' : '👑 리리 로그인'; }).catch(() => {});
+  btn.onclick = () => { if (amRiri) { window.claude.ririLogout(); return; } $('ririBox').hidden = !$('ririBox').hidden; if (!$('ririBox').hidden) $('ririPw').focus(); };
+  $('ririCancel').onclick = () => { $('ririBox').hidden = true; $('ririPw').value = ''; };
+  $('ririBox').onsubmit = async e => { e.preventDefault(); const pw = $('ririPw').value; if (!pw) return;
+    toast('👑 로그인 중…');
+    try { await window.claude.ririLogin(pw); } catch (err) { toast('비밀번호가 맞지 않아요'); $('ririPw').value = ''; $('ririPw').focus(); } };
+}
+const MAX_PEOPLE = 30; let joining = false, delArmed = 0;
+$('joinBtn').onclick = async () => {
+  if (!dbMode || !myUid || meId || joining) return;
+  if (chars.filter(c => c.id !== RIRI_ID).length >= MAX_PEOPLE) { toast(`자리가 꽉 찼어요 (${MAX_PEOPLE}명)`); return; }
+  joining = true; renderPanel();
+  const names = new Set(chars.map(c => c.name)); let d; do { d = makeRoster(1)[0]; } while (names.has(d.name));
+  try { await DB.doc('chars/' + myUid).set({ name:d.name, nt:Date.now(), look:d.look, status:'work', st:Date.now(), owner:myUid, order:Date.now() }); toast(`🎉 ${d.name} 입장! 이름은 ✏️ 버튼으로 바꿀 수 있어요`); }
+  catch (e) { toast('캐릭터를 만들지 못했어요. 잠시 뒤 다시 해주세요'); }
+  joining = false; renderPanel(true);
+};
+$('delBtn').onclick = async e => {
+  const sel = chars.find(c => c.id === selectedId); const b = e.currentTarget;
+  if (!sel || sel.id === RIRI_ID || !(isAdmin || charOwner[sel.id] === myUid)) return;
+  if (Date.now() - delArmed > 2500) { delArmed = Date.now(); b.classList.add('warn'); b.textContent = '한 번 더 누르면 지워요'; setTimeout(() => { b.classList.remove('warn'); renderPanel(); }, 2600); return; }
+  delArmed = 0; b.classList.remove('warn');
+  try { await DB.doc('chars/' + sel.id).delete(); toast(`👋 ${sel.name} 퇴장`); } catch (e) { toast('지우지 못했어요'); }
+};
 $('renameBtn').onclick = () => { const sel = chars.find(c => c.id === selectedId); if (!sel) return; renameFor = sel.id; $('renameBox').hidden = false; $('nameIn').value = sel.name; $('nameIn').focus(); $('nameIn').select(); };
 document.querySelectorAll('#roofActs [data-a]').forEach(b => b.onclick = () => { if (selectedId && canControl(chars.find(c => c.id === selectedId))) triggerAction(selectedId, b.dataset.a); });
 $('renameCancel').onclick = () => { renameFor = null; $('renameBox').hidden = true; };
@@ -1349,9 +1418,8 @@ function sanitizeLook(L){ // 다른 사람이 쓴 데이터: 모르는 값은 �
   return out;
 }
 async function seedDb(){
-  const list = makeRoster(10);
   const docs = [{ id:RIRI_ID, name:'리리', nt:0, look:{ princess:true }, status:'work', st:Date.now(), owner:myUid||'', order:0 },
-    ...list.map((d,i) => ({ ...d, owner:'', order:i+1 }))];
+  ];
   for (const d of docs) { const { id, ...body } = d; try { await DB.doc('chars/' + id).set(body); } catch(e){} }
 }
 async function reseedDb(){
