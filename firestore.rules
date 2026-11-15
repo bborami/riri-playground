@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function ownerUid() { return get(/databases/$(database)/documents/meta/config).data.ownerUid; }
+    function isOwner() { return signedIn() && exists(/databases/$(database)/documents/meta/config) && ownerUid() == request.auth.uid; }
+
+    // 주인 정보: 처음 연 사람이 한 번만 만들 수 있고, 이후엔 못 바꿈 (바꾸려면 콘솔에서 문서 삭제)
+    match /meta/config {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 캐릭터
+    match /chars/{id} {
+      allow read: if signedIn();
+      allow create, delete: if isOwner();
+      allow update: if isOwner() || (
+        signedIn() && id != 'riri'
+        // 주인 없는 캐릭터거나 내 캐릭터일 때만
+        && (resource.data.owner == '' || resource.data.owner == request.auth.uid)
+        // 소유자는 비우거나 나로만
+        && (request.resource.data.owner == '' || request.resource.data.owner == request.auth.uid)
+        // 외형/순서는 못 바꿈
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'nt', 'status', 'st', 'owner'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 12
+      );
+    }
+
+    // 담타/소리지르기 같은 순간 이벤트 (30초 뒤 지움)
+    match /events/{eid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.t is number;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // 접속자 수
+    match /presence/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && uid == request.auth.uid;
+    }
+  }
+}

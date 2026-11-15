@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>총무 오피스</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#4b3f5c; --sub:#8e83a0; --panel:rgba(255,255,255,.86); --line:#eadff2; --pink:#f6b8cf; --lav:#c9b3f2; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;color:var(--ink);font-family:'Noto Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:linear-gradient(165deg,#e6dcfa 0%,#f4e1f4 45%,#fde4ec 75%,#fde9e3 100%);}
+  #app{display:flex;height:100vh;width:100vw;overflow:hidden}
+  #stage{position:relative;flex:1;min-width:0}
+  #stage canvas{position:absolute;inset:0;display:block}
+  #overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .title{position:absolute;left:18px;top:16px;background:var(--panel);backdrop-filter:blur(6px);border-radius:20px;padding:10px 18px;box-shadow:0 8px 24px rgba(160,120,200,.22);pointer-events:none}
+  .title h1{margin:0;font-size:22px;font-weight:700}
+  .title p{margin:2px 0 0;font-size:12.5px;color:var(--sub)}
+  .conn{position:absolute;right:16px;top:16px;background:var(--panel);border-radius:14px;padding:7px 12px;font-size:12.5px;box-shadow:0 6px 18px rgba(160,120,200,.2);display:flex;gap:6px;align-items:center}
+  .dot{width:8px;height:8px;border-radius:50%;background:#cbbfd8;display:inline-block}
+  .dot.on{background:#5fcf8f;box-shadow:0 0 0 3px rgba(95,207,143,.25)}
+
+  .zl{position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.93);border-radius:16px;padding:7px 14px 7px 7px;display:flex;align-items:center;gap:9px;
+      box-shadow:0 8px 22px rgba(150,110,190,.25);white-space:nowrap}
+  .zl:after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(255,255,255,.93);border-bottom:0}
+  .zl .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:16px}
+  .zl b{font-size:14.5px;font-weight:700;display:block}
+  .zl small{font-size:11px;color:var(--sub);display:block;margin-top:1px}
+  .tag{position:absolute;transform:translate(-50%,0);font-size:10.5px;font-weight:500;background:rgba(255,255,255,.85);border-radius:8px;padding:1px 7px;white-space:nowrap;color:var(--ink)}
+  .tag.me{background:#5b4a73;color:#fff}
+  .tag.cat{background:rgba(255,236,206,.92);color:#7a5530}
+  .bub{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:500;background:#fff;border-radius:12px;padding:5px 10px;white-space:nowrap;box-shadow:0 4px 12px rgba(120,90,160,.2);animation:pop .3s cubic-bezier(.3,1.6,.5,1)}
+  .bub:after{content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);border:5px solid transparent;border-top-color:#fff;border-bottom:0}
+  .bub.shout{font-size:15px;font-weight:700;color:#e0446a;background:#fff3f6}
+  .bub.shout:after{border-top-color:#fff3f6}
+  .acts{display:flex;gap:7px;margin-top:8px}
+  .acts[hidden]{display:none}
+  .acts button{flex:1;font-family:inherit;font-size:13.5px;font-weight:500;border:none;border-radius:14px;padding:9px 6px;cursor:pointer;color:var(--ink);background:#ffe1ea;box-shadow:0 3px 0 rgba(90,60,120,.12)}
+  .acts button:first-child{background:#e9e4f2}
+  .heart{position:absolute;transform:translate(-50%,-50%);font-size:15px}
+  @keyframes pop{from{transform:translate(-50%,-100%) scale(.5);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
+
+  #toasts{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .toast{background:var(--panel);border-radius:16px;padding:8px 15px;font-size:13.5px;box-shadow:0 8px 20px rgba(150,110,190,.22);animation:pop2 .35s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes pop2{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  #catMenu{position:absolute;width:160px;background:#fff;border-radius:18px;padding:10px;box-shadow:0 10px 26px rgba(150,110,190,.3);display:flex;flex-direction:column;gap:6px;animation:pop2 .25s cubic-bezier(.3,1.6,.5,1)}
+  #catMenu[hidden]{display:none}
+  #catMenu .cn{font-size:14px;font-weight:700;text-align:center}
+  #catMenu button{font-family:inherit;font-size:13.5px;border:none;border-radius:12px;padding:8px 6px;cursor:pointer;background:#ffe7c7;color:var(--ink)}
+  #catMenu button[data-act=churu]{background:#ffd6e3}
+  #catMenu button[data-act=play]{background:#dcd0fb}
+  #catMenu .x{position:absolute;right:11px;top:7px;cursor:pointer;color:var(--sub);font-size:12px}
+
+  #panel{width:320px;flex:none;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  .sec{padding:14px 16px;border-bottom:1px solid var(--line)}
+  .sec h2{margin:0 0 8px;font-size:13px;font-weight:500;color:var(--sub)}
+  select{font-family:inherit;font-size:14px;width:100%;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .card{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+  .card img,.card .ph{width:64px;height:64px;background:#f4ecfb;border-radius:18px;flex:none}
+  .card .nm{font-size:17px;font-weight:700}
+  .card .st{font-size:12.5px;color:var(--sub)}
+  .nmrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .mini{font-family:inherit;font-size:11.5px;border:none;border-radius:10px;padding:3px 8px;background:#f1e8fb;color:var(--ink);cursor:pointer}
+  .renameBox{display:flex;gap:6px;margin:0 0 10px}
+  .renameBox[hidden]{display:none}
+  .renameBox input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:7px 10px;border-radius:10px;border:1px solid var(--lav);outline:none}
+  .renameBox button{font-family:inherit;font-size:13px;border:none;border-radius:10px;padding:7px 10px;background:#c9b3f2;color:#fff;cursor:pointer}
+  .renameBox button.cancel{background:#eee6f6;color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+  .sbtn{font-family:inherit;font-size:13.5px;font-weight:500;border:none;border-radius:14px;padding:9px 6px;cursor:pointer;color:var(--ink);box-shadow:0 3px 0 rgba(90,60,120,.12);transition:transform .08s}
+  .sbtn:active{transform:translateY(2px)}
+  .sbtn.cur{outline:2px solid var(--ink);outline-offset:-2px}
+  .sbtn.wide{grid-column:span 2}
+  #list{flex:1;overflow:auto;padding:6px 8px}
+  .row{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:14px;cursor:pointer}
+  .row:hover{background:#f6effb}
+  .row.sel{background:#efe4fa}
+  .row img{width:38px;height:38px;flex:none}
+  .row .nm{flex:1;font-size:13.5px}
+  .row .me{font-size:10px;background:var(--ink);color:#fff;border-radius:8px;padding:1px 6px;margin-left:4px}
+  .chip{font-size:11.5px;border-radius:10px;padding:3px 8px;white-space:nowrap}
+  .counts{display:flex;flex-wrap:wrap;gap:5px}
+  .foot{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px}
+  .foot button{flex:1;font-family:inherit;font-size:13px;border:none;border-radius:14px;padding:9px 6px;background:#f1e8fb;color:var(--ink);cursor:pointer}
+  .foot button.on{background:#c9efd8}
+  .foot button.warn{background:#ffd3dc}
+  #loading{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;color:var(--sub)}
+  @media (max-width:820px){
+    #app{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
+    #stage{height:64vh;flex:none}
+    #panel{width:100%;border-left:none;border-top:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="loading">사무실 짓는 중…</div>
+    <div id="overlay"></div>
+    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p></div>
+    <div class="conn"><span class="dot" id="connDot"></span><span id="connText">혼자 보는 중</span></div>
+    <div id="catMenu" hidden><div class="cn">🐾</div><button data-act="pet">🖐️ 쓰다듬기</button><button data-act="churu">🍡 츄르 주기</button><button data-act="play">🪶 놀아주기</button><span class="x">✕</span></div>
+    <div id="toasts"></div>
+  </div>
+  <aside id="panel">
+    <div class="sec"><h2>내 캐릭터</h2><select id="meSel"></select></div>
+    <div class="sec">
+      <div class="card"><div class="ph" id="selPh"></div><div><div class="nmrow"><span class="nm" id="selName">-</span><button class="mini" id="renameBtn" hidden>✏️ 이름 바꾸기</button></div><div class="st" id="selStatus">-</div></div></div>
+      <form class="renameBox" id="renameBox" hidden><input id="nameIn" maxlength="12" placeholder="새 이름 (최대 12자)" autocomplete="off"><button type="submit">저장</button><button type="button" class="cancel" id="renameCancel">취소</button></form>
+      <div class="grid" id="statusGrid"></div>
+      <div class="st" id="lockNote" hidden style="margin-top:8px"></div>
+      <div class="acts" id="roofActs" hidden><button data-a="smoke">🚬 담타</button><button data-a="shout">📢 소리지르기</button></div>
+    </div>
+    <div class="sec"><h2>구역별 인원</h2><div class="counts" id="counts"></div></div>
+    <div id="list"></div>
+    <div class="foot">
+      <button id="simBtn">🤖 자동 시뮬레이션</button>
+      <button id="regenBtn">🎲 새로 뽑기</button>
+    </div>
+  </aside>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="./firebase-shim.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+// ================================================================ 기본 데이터
+const STATUSES = [
+  { key:'work',   label:'업무중', emoji:'💻', color:[255,70,85], ic:'#e6dcff', sub:'자리에서 열일 중',
+    lines:['타닥타닥…','이 메일만 보내고','엑셀 지옥','집중 모드!','결재 올렸어요','잔액 부족..하아..','여보세요','수납완료'] },
+  { key:'pantry', label:'탕비실', emoji:'☕', color:[28,90,86], ic:'#ffe6cf', sub:'모여 앉아 수다 · 커피',
+    lines:['커피 한 잔 할까요?','어제 그거 봤어요?','ㅋㅋㅋㅋ','간식 누가 사왔어요?','믹스커피 최고'] },
+  { key:'cafe',   label:'카페',   emoji:'🧋', color:[150,55,84], ic:'#d6f5e6', sub:'커피 사고 마시는 중',
+    lines:['아아 하나요!','오늘은 라떼','여기 빵 맛있어요','디카페인으로…','샷 추가요!'] },
+  { key:'toilet', label:'화장실', emoji:'🚻', color:[195,75,85], ic:'#d8f0fb', sub:'잠깐 자리 비움',
+    lines:['잠깐만요!','급해요…','손 씻기 30초','휴…'] },
+  { key:'roof',   label:'옥상',   emoji:'🌤️', color:[340,85,88], ic:'#ffdbe8', sub:'바람 쐬는 중',
+    lines:['바람 좋다~','기지개 쭉','하늘 예쁘다','5분만 쉬자'] },
+  { key:'loaf', label:'월루중', emoji:'🐾', color:[30,90,85], ic:'#ffeacc', sub:'고양이 놀이터에서 냥이랑 노는 중',
+    lines:['고양이 최고…','잠깐 힐링 중','츄르 먹을래?','일은 이따가…','냥냥~'] },
+  { key:'vacation', label:'연차', emoji:'🛏️', color:[45,90,85], ic:'#fff0c4', sub:'침대에서 푹 쉬는 중',
+    lines:['연차 최고!','연락하지 마세요~','푹 자는 중…','오늘은 쉽니다'] },
+];
+const SBYKEY = Object.fromEntries(STATUSES.map(s => [s.key, s]));
+const RIRI_ID = 'riri';
+const SHOUTS = ['으아아아악!!!','퇴근하고 싶다!!!','월급 올려줘!!!','왜 나만!!!','아 몰라!!!','주말 언제 와!!!','야호~~~!!'];
+const CHAT = ['ㅋㅋㅋ','진짜요?','헐','그니까요','어제 회식…','주말에 뭐해요?','맛있다','오~','ㅎㅎ'];
+
+const rand = (a,b) => a + Math.random()*(b-a);
+const randi = (a,b) => Math.floor(rand(a,b+1));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const chance = p => Math.random() < p;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const uid = () => Math.random().toString(36).slice(2,10);
+const cssHsl = (c, dl=0) => `hsl(${c[0]},${c[1]}%,${clamp(c[2]+dl,0,100)}%)`;
+
+// ================================================================ three 기본
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
+camera.position.set(-2, 31, 33);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(5.8, 0, -4.6);
+controls.enableDamping = true; controls.dampingFactor = .08;
+controls.minDistance = 14; controls.maxDistance = 75; controls.maxPolarAngle = 1.25; controls.minPolarAngle = .35;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xf1d3ea, 1.55));
+const sun = new THREE.DirectionalLight(0xfff6f0, 1.75);
+sun.position.set(12, 26, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-28, right:28, top:22, bottom:-22, near:1, far:80 });
+sun.shadow.camera.position.copy(sun.position);
+sun.target.position.set(4, 0, -5); scene.add(sun.target);
+sun.shadow.bias = -0.0006; sun.shadow.radius = 5;
+scene.add(sun);
+
+const matCache = new Map();
+function mat(color, extra) {
+  const key = color + (extra ? JSON.stringify(extra) : '');
+  if (!matCache.has(key)) matCache.set(key, new THREE.MeshStandardMaterial(Object.assign({ color, roughness:.82, metalness:0 }, extra||{})));
+  return matCache.get(key);
+}
+const hex = (h,s,l) => new THREE.Color().setHSL(((h%360)+360)%360/360, s/100, l/100, THREE.SRGBColorSpace).getHex();
+const geoCache = new Map();
+function cg(key, make){ if (!geoCache.has(key)) geoCache.set(key, make()); return geoCache.get(key); }
+function M(geo, color, shadow=true){ const m = new THREE.Mesh(geo, typeof color === 'number' ? mat(color) : color); m.castShadow = shadow; m.receiveShadow = true; return m; }
+function box(w,h,d,color,r=.05){ r = Math.min(r, w/2-.001, h/2-.001, d/2-.001); return M(cg(`b${w},${h},${d},${r}`, () => r>0.005 ? new RoundedBoxGeometry(w,h,d,3,r) : new THREE.BoxGeometry(w,h,d)), color); }
+function cyl(rt,rb,h,color,seg=24){ return M(cg(`c${rt},${rb},${h},${seg}`, () => new THREE.CylinderGeometry(rt,rb,h,seg)), color); }
+function sph(r,color,seg=18){ return M(cg(`s${r},${seg}`, () => new THREE.SphereGeometry(r,seg,Math.max(8,seg*0.7|0))), color); }
+function cap(r,l,color){ return M(cg(`p${r},${l}`, () => new THREE.CapsuleGeometry(r,l,6,14)), color); }
+function cone(r,h,color,seg=16){ return M(cg(`k${r},${h},${seg}`, () => new THREE.ConeGeometry(r,h,seg)), color); }
+function tor(r,t,color,arc=Math.PI*2){ return M(cg(`t${r},${t},${arc}`, () => new THREE.TorusGeometry(r,t,8,24,arc)), color); }
+function put(parent, obj, x=0,y=0,z=0, ry=0){ obj.position.set(x,y,z); obj.rotation.y = ry; parent.add(obj); return obj; }
+
+// 색
+const C = {
+  top:0xfffcf8, side:0xf5b3cb, sideDark:0xeea0bd, wood:0xf2c48d, woodDark:0xd9a46c, lav:0xc9b3f2, lavDeep:0xab8fe6, mint:0x9fe3c4, mintDeep:0x7dd3ae,
+  tree:0x8fdcb6, tree2:0xa9e8c6, trunk:0xc99a73, white:0xffffff, pink:0xf7b6cc, peach:0xffd8bd, sky:0xbfe6f6, gray:0xcfc8d8, dark:0x5b5070, screen:0x9fd8ff,
+};
+
+// ================================================================ 지형 (떠 있는 플랫폼)
+const world = new THREE.Group(); scene.add(world);
+function platform(x0,x1,z0,z1,y,topColor=C.top){
+  const w=x1-x0, d=z1-z0, cx=(x0+x1)/2, cz=(z0+z1)/2;
+  put(world, box(w, 1.1, d, C.side, .5), cx, y-.8, cz);
+  put(world, box(w-.1, .32, d-.1, topColor, .14), cx, y-.16, cz);
+}
+platform(-11.5, 11.5, -7.6, 5.6, 0);              // 본관
+platform(13.4, 21.6, -3.8, 5.2, 0, 0xfff8f0);     // 카페
+platform(-8.6, 3.6, -16.2, -9.4, 3.5, 0xfdfcff);  // 옥상
+
+function tree(x,y,z,s=1){
+  const g = new THREE.Group();
+  put(g, cyl(.08*s,.11*s,.5*s,C.trunk,8), 0,.25*s,0);
+  const col = chance(.5) ? C.tree : C.tree2;
+  put(g, sph(.42*s,col,14), 0,.75*s,0);
+  put(g, sph(.32*s,col,14), .05*s,1.12*s,.02*s);
+  put(g, sph(.22*s,col,12), 0,1.4*s,0);
+  put(world, g, x,y,z);
+}
+function rug(x,z,w,d,color,y=0){ const r = box(w,.04,d,color,.02); r.castShadow=false; put(world, r, x,y+.02,z); return r; }
+function wall(x,z,w,h,d,color,y=0){ return put(world, box(w,h,d,color,.04), x,y+h/2,z); }
+
+// --- 업무 구역 (책상 12개)
+const OFFICE = { clusters:[-6.6,-1.6], rows:[-1.1,.6,2.3] };
+rug(-4.1, .6, 10.6, 5.4, 0xefe6fd);
+const desks = []; // {seat:[x,z], ry, aisleX, via, screenMat}
+for (const cx of OFFICE.clusters) {
+  for (const rz of OFFICE.rows) {
+    // 가운데 칸막이
+    put(world, box(.08,.55,1.45,0xd9c8f6,.03), cx,.82,rz);
+    for (const side of [-1,1]) {
+      const dx = cx + side*.42;
+      const desk = new THREE.Group();
+      put(desk, box(.8,.06,1.4,C.white,.02), 0,.6,0);
+      for (const [lx,lz] of [[-.34,-.62],[.34,-.62],[-.34,.62],[.34,.62]]) put(desk, cyl(.03,.03,.58,0xe7defa,8), lx,.29,lz);
+      // 모니터
+      const scrMat = new THREE.MeshStandardMaterial({ color:0x26304a, emissive:0x9fd8ff, emissiveIntensity:.15, roughness:.4 });
+      put(desk, box(.06,.42,.68,0x4a4560,.03), -side*.22,.9,0);
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(.6,.34), scrMat); scr.position.set(-side*.22 + side*.035,.91,0); scr.rotation.y = side*Math.PI/2; desk.add(scr);
+      put(desk, cyl(.03,.03,.14,0x4a4560,8), -side*.22,.68,0);
+      put(desk, box(.2,.02,.36,0xf3effa,.01), side*.08,.64,0);   // 키보드
+      put(desk, cyl(.05,.045,.1,pick([0xffb3c7,0xa9d8ff,0xffe08a,0xb9f0d0]),12), side*.1,.68,.48); // 머그
+      if (chance(.5)) put(desk, box(.16,.05,.22,pick([0xffd7a8,0xd8c8ff,0xc8f0e0]),.01), side*.12,.655,-.45); // 서류
+      put(world, desk, dx,0,rz);
+      // 의자
+      const chair = new THREE.Group();
+      put(chair, cyl(.25,.25,.08,0x8f7bd6,16), 0,.42,0);
+      put(chair, box(.08,.45,.48,0x8f7bd6,.04), -side*-.24,.7,0);
+      put(chair, cyl(.03,.03,.36,0x6a6280,8), 0,.2,0);
+      put(chair, cyl(.2,.2,.03,0x6a6280,10), 0,.03,0);
+      const chx = cx + side*1.22;
+      put(world, chair, chx,0,rz);
+      const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
+      const via = aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3';
+      desks.push({ seat:[chx, rz], ry: side < 0 ? Math.PI/2 : -Math.PI/2, aisleX, via, scrMat });
+    }
+  }
+}
+
+// --- 화장실
+rug(-8.1, -5.35, 5.9, 3.8, 0xdff4fb);
+wall(-8.1, -7.25, 5.9, 1.7, .14, 0xcfeefa);
+wall(-11.0, -5.4, .14, 1.7, 3.8, 0xcfeefa);
+wall(-5.15, -6.45, .14, 1.7, 1.6, 0xcfeefa);
+const stalls = [];
+for (let i=0;i<3;i++){
+  const sx = -10.25 + i*1.12;
+  wall(sx+.56, -6.6, .07, 1.35, 1.2, 0xffffff);
+  put(world, cyl(.18,.15,.36,C.white,16), sx,.18,-6.85);
+  put(world, box(.38,.36,.12,C.white,.05), sx,.42,-7.1);
+  const door = new THREE.Group(); const dm = box(.98,1.2,.05,0x9ed9f0,.03); dm.position.set(.49,.7,0); door.add(dm);
+  door.position.set(sx-.5,0,-6.0); world.add(door);
+  const light = sph(.06, new THREE.MeshStandardMaterial({ color:0x6fe0a0, emissive:0x6fe0a0, emissiveIntensity:.6 }), 10);
+  put(world, light, sx, 1.5, -5.98);
+  stalls.push({ x:sx, door, light });
+}
+wall(-10.8, -6.6, .07, 1.35, 1.2, 0xffffff);
+for (const sx of [-6.55,-5.75]) {
+  put(world, box(.55,.12,.4,C.white,.05), sx,.75,-6.95);
+  put(world, cyl(.06,.06,.7,C.white,10), sx,.38,-7.0);
+  put(world, box(.48,.55,.04,0xe8f8ff,.03), sx,1.25,-7.16);
+}
+// 표지
+put(world, box(.7,.34,.05,0xffffff,.05), -8.1,1.95,-7.2);
+put(world, sph(.07,0x7ab8ff,10), -8.25,1.97,-7.16); put(world, sph(.07,0xff8fb0,10), -7.95,1.97,-7.16);
+
+// --- 탕비실
+rug(5.9, -5.35, 9.3, 3.8, 0xfff0e2);
+wall(5.9, -7.25, 9.3, 1.7, .14, 0xffe2cf);
+wall(10.55, -5.4, .14, 1.7, 3.8, 0xffe2cf);
+put(world, box(4.0,.66,.7,0xffffff,.05), 3.4,.33,-6.75);
+put(world, box(4.05,.06,.74,0xf2c9a8,.02), 3.4,.69,-6.75);
+// 커피머신
+put(world, box(.5,.6,.4,0x6d5f7e,.07), 2.5,1.02,-6.8); put(world, box(.3,.12,.22,0x3a3348,.03), 2.5,.82,-6.6);
+put(world, sph(.05,0xff8fa8,8), 2.5,1.22,-6.59);
+// 전자레인지, 포트, 간식바구니
+put(world, box(.6,.36,.42,0xf8f2ff,.06), 4.2,.9,-6.85); put(world, box(.34,.22,.02,0x4a4560,.02), 4.1,.9,-6.63);
+put(world, cyl(.12,.14,.26,0xffb3c7,14), 5.0,.85,-6.8);
+put(world, cyl(.22,.18,.14,0xf2c48d,14), 3.4,.79,-6.6);
+for (let i=0;i<5;i++) put(world, sph(.06, pick([0xffd36e,0xff9eb5,0xa0e3c2,0xffffff]),8), 3.3+rand(-.1,.1),.86,-6.6+rand(-.08,.08));
+// 냉장고
+put(world, box(.8,1.7,.7,0xf6f4fb,.1), 6.1,.85,-6.8); put(world, box(.04,.4,.04,0xcac2d8,.02), 5.8,1.15,-6.42);
+put(world, box(.2,.2,.02,0xffd36e,.02), 6.2,1.3,-6.44);
+// 원탁 + 의자
+const PT = { x:7.7, z:-5.25, r:1.0 };
+put(world, cyl(.6,.6,.06,C.white,28), PT.x,.62,PT.z); put(world, cyl(.06,.1,.6,0xe5d8f5,10), PT.x,.3,PT.z);
+put(world, cyl(.06,.05,.08,0xffffff,10), PT.x+.2,.69,PT.z+.1); put(world, cyl(.06,.05,.08,0xffc7d6,10), PT.x-.15,.69,PT.z-.2);
+const pantryChairs = [];
+for (const a of [Math.PI*.25, Math.PI*.75, Math.PI*1.25, Math.PI*1.75]) {
+  const x = PT.x + Math.cos(a)*PT.r, z = PT.z + Math.sin(a)*PT.r;
+  const ch = new THREE.Group(); put(ch, cyl(.22,.22,.07,0xffb38a,14), 0,.4,0); put(ch, cyl(.03,.03,.38,0xd9a46c,8), 0,.19,0);
+  put(world, ch, x,0,z);
+  pantryChairs.push([x,z,a]);
+}
+// 소파
+put(world, box(.8,.4,2.1,0xc9b3f2,.15), 10.0,.25,-5.5); put(world, box(.25,.6,2.1,0xb79ef0,.12), 10.35,.55,-5.5);
+put(world, box(.7,.45,.25,0xb79ef0,.1), 10.0,.4,-6.6); put(world, box(.7,.45,.25,0xb79ef0,.1), 10.0,.4,-4.4);
+
+// --- 오른쪽 라운지 장식
+put(world, box(.7,.9,.55,0xf2eefa,.08), 3.4,.45,1.6); put(world, box(.5,.06,.36,0x6d5f7e,.02), 3.4,.93,1.6); // 프린터
+put(world, cyl(.18,.2,.9,0xe6f6ff,14), 9.8,.45,-1.6); put(world, cyl(.16,.16,.42,0xa8dcff,14), 9.8,1.11,-1.6); // 정수기
+for (const [x,z] of [[10.6,-.3],[3.2,3.6],[-10.6,-1.8],[-10.6,3.8]]) { put(world, cyl(.22,.18,.36,0xf5b3cb,12), x,.18,z); put(world, sph(.32,C.tree,12), x,.6,z); put(world, sph(.22,C.tree2,12), x+.08,.85,z); }
+// 책장
+put(world, box(.4,1.4,1.8,0xf2e6ff,.06), 10.95,.7,2.2);
+for (let i=0;i<9;i++) put(world, box(.25,.32,.12, pick([0xffb3c7,0xa9d8ff,0xffe08a,0xb9f0d0,0xd8c8ff]),.02), 10.85,.95-(i%3)*.4+.1, 1.55+Math.floor(i/3)*.18*3+ (i%3)*.12);
+// 나무
+for (const [x,z,s] of [[-11,5,1.1],[-9.6,5.1,.9],[11,5,1.1],[-11,-7.1,1],[4.6,5,.9],[7.6,5.1,1.1],[9.4,4.9,.8],[0.6,5.1,.8]]) tree(x,0,z,s);
+
+// --- 고양이 놀이터 + 캣타워
+rug(7.3, 1.5, 6.2, 6.2, 0xfff1e4);
+const TOWER = { x:9.25, z:3.25 };
+const towerSpots = [];
+{
+  const g = new THREE.Group();
+  put(g, box(1.35,.12,1.35,0xf3dcc0,.05), 0,.06,0);
+  const sisal = 0xe9cf9f;
+  put(g, cyl(.09,.09,1.9,sisal,14), -.4,1.0,-.4);
+  put(g, cyl(.09,.09,1.05,sisal,14), .35,.6,.3);
+  // 숨숨집
+  put(g, box(.72,.58,.62,0xffc7d6,.1), -.25,.41,.28);
+  const hole = cyl(.17,.17,.04,0x5b4a6a,20); hole.rotation.x = Math.PI/2; put(g, hole, -.25,.38,.6);
+  // 중간 발판
+  put(g, box(.72,.08,.72,0xd9c8ff,.04), .3,1.15,.28);
+  put(g, cyl(.008,.008,.35,0xffffff,4), .6,.97,.6); put(g, sph(.07,0xffd36e,10), .6,.78,.6);
+  // 꼭대기 방석
+  put(g, cyl(.4,.4,.08,0xf3dcc0,24), -.4,1.97,-.4);
+  const ring = tor(.3,.08,0x9fe3c4); ring.rotation.x = Math.PI/2; put(g, ring, -.4,2.05,-.4);
+  put(g, cyl(.24,.24,.04,0xbff0da,20), -.4,2.03,-.4);
+  // 작은 받침
+  put(g, box(.45,.06,.45,0xd9c8ff,.03), .45,.42,-.35); put(g, cyl(.06,.06,.36,sisal,10), .45,.2,-.35);
+  put(world, g, TOWER.x,0,TOWER.z);
+  for (const [x,y,z,pose] of [[-.4,2.03,-.4,'sleep'],[.3,1.19,.28,'sit'],[-.25,.7,.28,'stand'],[.45,.45,-.35,'sit']]) towerSpots.push({ pos:new THREE.Vector3(TOWER.x+x,y,TOWER.z+z), pose, occ:null });
+}
+// 낚싯대 장난감, 밥그릇
+put(world, cyl(.18,.14,.08,0xffb3c7,16), 6.3,.04,3.9); put(world, sph(.1,0xf2c48d,10), 6.3,.08,3.9).scale.y=.4;
+put(world, cyl(.16,.12,.08,0xa9d8ff,16), 6.75,.04,4.0);
+put(world, sph(.09,0xffe08a,10), 5.4,.09,2.6); put(world, sph(.08,0xffb3c7,10), 7.8,.08,0.2);
+
+// --- 연차섬
+platform(13.4, 21.6, -14.6, -5.9, 0, 0xfff1d6);
+const VBEDS = [];
+{
+  rug(17.5, -10.3, 7.8, 8.4, 0xfff5e2);
+  const cols = [14.35,15.85,17.35,18.85,20.35], rows = [-9.25,-12.65];
+  const covers = [0xffc7d6,0xbfe9d6,0xd6c8ff,0xffe39a,0xa9d8ff];
+  rows.forEach((bz, ri) => cols.forEach((bx, ci) => {
+    const g = new THREE.Group();
+    put(g, box(1.0,.3,1.9,0xf2c48d,.08), 0,.15,0);
+    put(g, box(.94,.14,1.84,0xffffff,.07), 0,.37,0);
+    put(g, box(1.0,.55,.12,0xd9a46c,.05), 0,.4,-.95);
+    put(g, box(.62,.12,.34,0xffffff,.06), 0,.5,-.68);
+    put(g, box(.96,.08,.95,covers[(ci+ri*2)%5],.04), 0,.47,.42);
+    put(world, g, bx,0,bz);
+    VBEDS.push({ x:bx, z:bz, back: ri===1 });
+  }));
+  // 야자수 + 파라솔 + 표지판
+  const palm = (x,z,s=1) => { const g = new THREE.Group(); for (let i=0;i<6;i++){ const seg = cyl(.08*s,.1*s,.32*s,0xc99a73,8); seg.position.set(i*.04*s, .16*s+i*.3*s, 0); seg.rotation.z = -.08; g.add(seg); }
+    for (let i=0;i<6;i++){ const leaf = sph(.5*s,0x8fdcb6,10); leaf.scale.set(1,.12,.35); const a = i/6*Math.PI*2; leaf.position.set(.24*s+Math.cos(a)*.42*s, 1.85*s, Math.sin(a)*.42*s); leaf.rotation.y = -a; leaf.rotation.z = -.35; g.add(leaf); }
+    put(g, sph(.08*s,0x8a6440,8), .26*s,1.75*s,.08*s); put(g, sph(.08*s,0x8a6440,8), .2*s,1.74*s,-.1*s); put(world, g, x,0,z); };
+  palm(13.9,-14.1,1.1); palm(21.1,-14.0,1); palm(21.25,-10.95,.85);
+  // 작은 풀장
+  // 리리 전용 공주 침대 (x방향, 머리 +x)
+  { const g = new THREE.Group();
+    put(g, box(1.95,.32,1.15,0xffd6e8,.1), 0,.16,0); put(g, box(1.9,.14,1.1,0xffffff,.07), 0,.39,0);
+    put(g, box(.12,.75,1.15,0xffb3d1,.06), .97,.45,0); put(g, box(.34,.12,.66,0xffffff,.06), .68,.52,0);
+    put(g, box(.95,.08,1.12,0xffc4dc,.04), -.45,.49,0);
+    for (const [px,pz] of [[-.9,-.5],[-.9,.5],[.9,-.5],[.9,.5]]) put(g, cyl(.03,.03,1.7,0xffd36e,8), px,.85,pz);
+    const can = M(new THREE.ConeGeometry(1.25,.45,4,1,true), new THREE.MeshStandardMaterial({ color:0xffe1ee, roughness:.8, side:THREE.DoubleSide, transparent:true, opacity:.85 })); can.rotation.y = Math.PI/4; can.scale.set(1,1,.62); put(g, can, 0,1.85,0);
+    put(g, sph(.07,0xffd36e,10), 0,2.1,0);
+    put(world, g, 20.35,0,-6.85); }
+  // 사이드 테이블 + 코코넛 주스
+  for (const z of [-9.25,-12.65]) { const x = 21.2; put(world, cyl(.14,.14,.4,0xffffff,12), x,.2,z); put(world, sph(.1,0x8a6440,10), x,.48,z); put(world, cyl(.008,.008,.18,0xff9ec0,4), x+.04,.6,z).rotation.z = .3; }
+}
+// 연차섬 다리 (본관 오른쪽 → 연차섬)
+for (let i=0;i<6;i++) put(world, box(.32,.1,1.2,C.wood,.03), 11.55+i*.33, -.05, -6.6);
+for (const sz of [-7.15,-6.05]) { put(world, box(2.1,.05,.05,C.woodDark,.02), 12.45,.6,sz); put(world, cyl(.04,.04,.65,C.woodDark,6), 11.4,.3,sz); put(world, cyl(.04,.04,.65,C.woodDark,6), 13.5,.3,sz); }
+
+// --- 계단 (본관 → 옥상)
+const STAIR = { x:-2.0, z0:-3.15, z1:-9.6, y1:3.5 };
+{
+  const n = 14;
+  for (let i=0;i<n;i++){
+    const t = (i+.5)/n; const z = STAIR.z0 + (STAIR.z1-STAIR.z0)*t; const y = STAIR.y1*t;
+    put(world, box(1.3,.12,.42,C.wood,.04), STAIR.x, y, z);
+  }
+  for (const sx of [-1,1]) {
+    const len = Math.hypot(STAIR.z1-STAIR.z0, STAIR.y1);
+    const rail = box(.06,.06,len,C.woodDark,.02); rail.position.set(STAIR.x+sx*.65, STAIR.y1/2+.7, (STAIR.z0+STAIR.z1)/2);
+    rail.rotation.x = Math.atan2(STAIR.y1, -(STAIR.z1-STAIR.z0)); world.add(rail);
+    for (let i=0;i<=4;i++){ const t=i/4; put(world, cyl(.035,.035,.7,C.woodDark,6), STAIR.x+sx*.65, STAIR.y1*t+.35, STAIR.z0+(STAIR.z1-STAIR.z0)*t); }
+  }
+}
+// --- 다리 (본관 → 카페)
+for (let i=0;i<6;i++) put(world, box(.32,.1,1.3,C.wood,.03), 11.55+i*.35, -.05, 1.0);
+for (const sz of [.4,1.6]) { const r = box(2.2,.05,.05,C.woodDark,.02); put(world, r, 12.4,.6,sz); put(world, cyl(.04,.04,.65,C.woodDark,6), 11.4,.3,sz); put(world, cyl(.04,.04,.65,C.woodDark,6), 13.5,.3,sz); }
+
+// --- 카페
+rug(17.5, .7, 7.6, 8.4, 0xf0fbf5);
+wall(17.5, -3.55, 7.8, 2.1, .14, 0xd6f5e6);
+put(world, box(4.2,.85,.75,0xffffff,.08), 17.2,.43,-2.35);
+put(world, box(4.3,.07,.82,C.wood,.03), 17.2,.88,-2.35);
+put(world, box(.55,.55,.45,0xb1a3c6,.07), 16.0,1.18,-2.5); put(world, sph(.05,0xff8fa8,8), 16.0,1.33,-2.27);
+put(world, box(.9,.4,.55,0xe9fbff,.07), 18.3,1.12,-2.4); for (let i=0;i<3;i++) put(world, sph(.09, pick([0xffc0d0,0xffe39a,0xd9b48c]),10), 18.0+i*.3,1.05,-2.4);
+put(world, box(2.2,1.0,.06,0x5d6f66,.05), 17.2,1.8,-3.45); // 메뉴판
+for (let i=0;i<4;i++) put(world, box(1.4-(i%2)*.4,.06,.02,0xffffff,.01), 17.0,2.1-i*.18,-3.41);
+// 어닝
+for (let i=0;i<8;i++){ const a = box(.98,.06,.9, i%2?0xffffff:0x9fe3c4,.02); a.position.set(14.05+i*.98, 2.25, -3.05); a.rotation.x = .35; world.add(a); }
+// 바리스타 (고정)
+const cafeTables = [[15.2,1.1],[18.8,1.1],[17.0,3.5]];
+for (const [x,z] of cafeTables) {
+  put(world, cyl(.5,.5,.06,C.white,24), x,.62,z); put(world, cyl(.05,.08,.6,0xc9b3f2,10), x,.3,z);
+  put(world, cyl(.07,.06,.12,0xffffff,10), x+.15,.71,z); put(world, cyl(.07,.06,.12,0xffd6a8,10), x-.18,.71,z-.1);
+  put(world, sph(.12, pick([0xffc0d6,0xbfe9d6,0xd6c8ff]),10), x,.72,z+.25).scale.y = .5;
+  for (const s of [-1,1]) { const ch = new THREE.Group(); put(ch, cyl(.22,.22,.07,0xfbe3a8,14), 0,.4,0); put(ch, cyl(.03,.03,.38,0xd9a46c,8), 0,.19,0); put(ch, box(.06,.4,.4,0xfbe3a8,.03), s*.2,.62,0); put(world, ch, x+s*.85,0,z); }
+}
+put(world, cyl(.28,.28,.05,C.white,18), 21.0,1.05,.0); put(world, cyl(.04,.06,1.02,0x6d5f7e,8), 21.0,.52,.0);
+for (const [x,z,s] of [[13.9,4.7,.9],[21.1,4.6,1],[21.2,-3.2,.8],[13.8,-3.3,.85]]) tree(x,0,z,s);
+
+// --- 옥상
+const RY = 3.5;
+rug(-2.5, -12.8, 11.4, 6.3, 0xe5f7ee, RY);
+// 난간
+for (const [x0,z0,x1,z1] of [[-8.3,-15.9,3.3,-15.9],[-8.3,-15.9,-8.3,-9.7],[3.3,-15.9,3.3,-9.7],[-8.3,-9.7,-3,-9.7],[-1,-9.7,3.3,-9.7]]) {
+  const len = Math.hypot(x1-x0,z1-z0); const r = box(x0===x1?.07:len,.07,x0===x1?len:.07,0xffffff,.03); put(world, r, (x0+x1)/2, RY+.85, (z0+z1)/2);
+  const n = Math.max(2, Math.round(len/1.1));
+  for (let i=0;i<=n;i++){ const t=i/n; put(world, cyl(.035,.035,.85,0xffffff,6), x0+(x1-x0)*t, RY+.42, z0+(z1-z0)*t); }
+}
+put(world, cyl(.9,.9,1.6,0xdfe9f7,20), 2.3,RY+1.3,-14.6); put(world, cyl(.18,.18,.5,0xcfd8e8,8), 2.3,RY+.25,-14.6); // 물탱크
+for (const [x,z] of [[2.6,-11.4],[2.6,-12.6]]) {}
+put(world, box(.5,.42,1.8,C.wood,.06), 2.65,RY+.21,-12.0); put(world, box(.12,.5,1.8,C.woodDark,.04), 2.95,RY+.6,-12.0); // 벤치
+for (const z of [-11.3,-13.1]) { // 선베드
+  const g = new THREE.Group(); put(g, box(.7,.12,1.5,0xffffff,.04), 0,.36,.15); const back = box(.7,.1,.8,0xffc7d6,.04); back.position.set(0,.66,-.75); back.rotation.x = .9; g.add(back);
+  put(g, box(.62,.05,1.2,0xffc7d6,.02), 0,.44,.2); put(world, g, -7.2,RY,z);
+}
+for (const [x,z] of [[-8,-15.4],[-5.2,-15.4],[-.2,-15.4],[-8,-10.2]]) { put(world, cyl(.25,.2,.4,0xf5b3cb,12), x,RY+.2,z); put(world, sph(.34,C.tree,12), x,RY+.65,z); put(world, sph(.2,0xffd36e,10), x+.15,RY+.9,z+.1); }
+// 빨랫줄 깃발
+for (let i=0;i<7;i++){ const f = cone(.13,.26, pick([0xffc0d6,0xbfe9d6,0xd6c8ff,0xffe39a]),3); f.rotation.x = Math.PI; put(world, f, -6.5+i*.9, RY+2.0-Math.sin(i/6*Math.PI)*.25, -15.0); }
+put(world, cyl(.03,.03,2.2,0xffffff,6), -7.2,RY+1.1,-15.0); put(world, cyl(.03,.03,2.2,0xffffff,6), -.3,RY+1.1,-15.0);
+
+// ================================================================ 길 찾기 그래프
+const NODES = {
+  F1:[-9.1,0,4.2], F2:[-4.1,0,4.2], F3:[1.1,0,4.2], F4:[6,0,4.0],
+  B1:[-9.1,0,-2.65], B2:[-4.1,0,-2.65], B3:[1.1,0,-2.65], B4:[6,0,-2.65],
+  T0:[-8,0,-3.2], P0:[5,0,-3.2],
+  S0:[STAIR.x,0,STAIR.z0+.15], S1:[STAIR.x,RY,STAIR.z1-.1], R0:[-2,RY,-11.2],
+  BR1:[11.2,0,1.0], BR2:[13.8,0,1.0], C0:[17,0,-.4],
+  V0:[11.1,0,-2.65], V1:[11.1,0,-6.6], V2:[14.0,0,-6.6], V3:[17.35,0,-7.75],
+};
+const EDGES = [['F1','F2'],['F2','F3'],['F3','F4'],['B1','B2'],['B2','B3'],['B3','B4'],['F1','B1'],['F2','B2'],['F3','B3'],['F4','B4'],
+  ['F4','BR1'],['BR1','BR2'],['BR2','C0'],['B1','T0'],['B2','T0'],['B3','P0'],['B4','P0'],['B2','S0'],['B3','S0'],['S0','S1'],['S1','R0'],['B4','V0'],['V0','V1'],['V1','V2'],['V2','V3']];
+const ADJ = {}; for (const k in NODES) ADJ[k] = [];
+for (const [a,b] of EDGES){ const d = Math.hypot(NODES[a][0]-NODES[b][0], NODES[a][2]-NODES[b][2]); ADJ[a].push([b,d]); ADJ[b].push([a,d]); }
+function shortest(a,b){
+  const dist = {}, prev = {}, q = new Set(Object.keys(NODES));
+  for (const k of q) dist[k] = Infinity; dist[a] = 0;
+  while (q.size) { let u=null; for (const k of q) if (u===null || dist[k]<dist[u]) u=k; q.delete(u); if (u===b) break; for (const [v,d] of ADJ[u]) if (dist[u]+d < dist[v]) { dist[v]=dist[u]+d; prev[v]=u; } }
+  const path = []; let u = b; while (u) { path.unshift(u); if (u===a) break; u = prev[u]; } return path;
+}
+
+// ================================================================ 슬롯 (구역 안 자리)
+const SLOTS = { work:[], pantry:[], cafe:[], toilet:[], roof:[], vacation:[] };
+const faceTo = (x,z,tx,tz) => Math.atan2(tx-x, tz-z);
+desks.forEach((d,i) => SLOTS.work.push({ i, pos:[d.seat[0],0,d.seat[1]], ry:d.ry, pose:'type', seat:.46, via:d.via, approach:[[d.aisleX,0,d.seat[1]]], desk:d }));
+stalls.forEach(s => SLOTS.toilet.push({ pos:[s.x,0,-6.65], ry:0, pose:'hidden', via:'T0', approach:[[s.x,0,-5.4]], stall:s }));
+for (const sx of [-6.55,-5.75]) SLOTS.toilet.push({ pos:[sx,0,-6.45], ry:Math.PI, pose:'wash', via:'T0', approach:[[sx,0,-5.2]] });
+for (const x of [-9.4,-8.5,-7.6]) SLOTS.toilet.push({ pos:[x,0,-4.2], ry:Math.PI, pose:'wait', via:'T0', approach:[] });
+SLOTS.pantry.push({ pos:[2.5,0,-6.0], ry:Math.PI, pose:'brew', via:'P0', approach:[[2.6,0,-4.0]] });
+SLOTS.pantry.push({ pos:[4.6,0,-6.0], ry:Math.PI, pose:'drinkStand', via:'P0', approach:[[4.6,0,-4.0]] });
+for (const [x,z,a] of pantryChairs) {
+  const ap = Math.cos(a) > 0 ? [[9.3,0,-3.9],[PT.x+Math.cos(a)*1.75,0,PT.z+Math.sin(a)*1.75]] : [[PT.x+Math.cos(a)*1.75,0,PT.z+Math.sin(a)*1.75]];
+  SLOTS.pantry.push({ pos:[x,0,z], ry:faceTo(x,z,PT.x,PT.z), pose: chance(.5)?'chat':'drink', seat:.44, via:'P0', approach:ap });
+}
+for (const z of [-6.0,-5.0]) SLOTS.pantry.push({ pos:[9.85,0,z], ry:-Math.PI/2, pose:'drink', seat:.45, via:'P0', approach:[[9.3,0,-3.9],[9.1,0,z]] });
+SLOTS.pantry.push({ pos:[3.6,0,-4.3], ry:Math.PI*.9, pose:'chatStand', via:'P0', approach:[] });
+
+SLOTS.cafe.push({ pos:[16.4,0,-1.45], ry:Math.PI, pose:'order', via:'C0', approach:[] });
+SLOTS.cafe.push({ pos:[17.7,0,-1.45], ry:Math.PI, pose:'order', via:'C0', approach:[] });
+cafeTables.forEach(([x,z],ti) => { for (const s of [-1,1]) {
+  const sx = x + s*.85;
+  const ap = ti < 2 ? [[sx,0,-.1]] : [[sx + (s<0?-.2:.2),0,2.4]];
+  SLOTS.cafe.push({ pos:[sx,0,z], ry: s<0 ? Math.PI/2 : -Math.PI/2, pose: chance(.5)?'drink':'chat', seat:.44, via:'C0', approach:ap });
+} });
+SLOTS.cafe.push({ pos:[20.4,0,0], ry:Math.PI/2, pose:'drinkStand', via:'C0', approach:[] });
+
+for (const x of [-6.2,-3.4,-.6]) SLOTS.roof.push({ pos:[x,RY,-15.35], ry:Math.PI, pose:'lean', via:'R0', approach:[] });
+for (const [x,z] of [[-4.8,-12.6],[-1.2,-13.1],[.6,-11.6]]) SLOTS.roof.push({ pos:[x,RY,z], ry:0, pose:'stretch', via:'R0', approach:[] });
+for (const z of [-11.5,-12.5]) SLOTS.roof.push({ pos:[2.45,RY,z], ry:-Math.PI/2, pose:'drink', seat:.44, via:'R0', approach:[[1.6,RY,z]] });
+for (const z of [-11.3,-13.1]) SLOTS.roof.push({ pos:[-7.2,RY,z+.1], ry:0, pose:'lie', seat:.42, via:'R0', approach:[[-6.2,RY,z+.1]] });
+for (const b of VBEDS) {
+  const ap = b.back ? [[b.x+.75,0,-7.75],[b.x+.75,0,-10.95],[b.x+.5,0,-11.5]] : [[b.x,0,-7.75]];
+  SLOTS.vacation.push({ pos:[b.x,0,b.z+.38], ry:0, pose:'sleep', bed:.44, via:'V3', approach:ap });
+}
+SLOTS.vacation.push({ pos:[19.97,0,-6.85], ry:-Math.PI/2, pose:'sleep', bed:.46, via:'V3', approach:[[18.9,0,-7.75],[18.9,0,-6.85]], only:RIRI_ID });
+SLOTS.loaf = [];
+for (const [x,z,ry,pose] of [[5.2,.3,0,'petcat'],[7.1,-.8,0,'wand'],[4.9,3.0,Math.PI/2,'petcat'],[8.3,1.0,-Math.PI/2,'petcat'],[7.3,3.0,Math.PI/2,'wand'],[9.6,-.2,0,'petcat']]) {
+  const d = pose==='wand' ? 1.05 : .62;
+  SLOTS.loaf.push({ pos:[x,0,z], ry, pose, via:'F4', approach:[], catSpot:[x+Math.sin(ry)*d, z+Math.cos(ry)*d], cat:null });
+}
+for (const k in SLOTS) SLOTS[k].forEach(s => { s.occ = null; s.zone = k; });
+
+// ================================================================ 캐릭터 모델
+const ADJ_W = ['졸린','배고픈','신난','바쁜','느긋한','용감한','수줍은','까칠한','해맑은','엉뚱한','부지런한','시크한','말랑한','반짝이는','투덜대는','명랑한','소심한','당당한','멍때리는','상큼한'];
+const NOUN_W = ['감귤','돌고래','한라봉','해녀','조랑말','흑돼지','갈매기','동백','고등어','오름','바람','유채','전복','돌멩이','귤껍질','파도','소라','천혜향','억새','물질왕'];
+const SKINS = [[30,65,88],[28,55,80],[26,48,70],[22,42,56],[20,38,42],[38,60,84],[18,55,76]];
+const BODY = ['round','tall','square','pear','wide','bean'];
+const EYES = ['dot','oval','sleepy','happy','wide','lash'];
+const MOUTH = ['smile','open','flat','cat','o','grin'];
+const HAIR = ['none','bowl','spiky','bun','pony','curly','mohawk','long','twin'];
+const HATS = ['beanie','cap','top','party','bucket','beret','flower','bunny','antenna','sprout','helmet','strawhat','bow'];
+const ACC = ['glasses','sunglasses','mustache','bowtie','tie','scarf','backpack','headphones','lanyard','earring'];
+const PATTERN = ['plain','stripes','dots','belly','plain','buttons'];
+const pastel = () => [randi(0,359), randi(45,78), randi(64,80)];
+function makeLook(){
+  return {
+    body: pick(BODY), bodyColor: pastel(), head: chance(.75) ? pick(SKINS) : [randi(0,359), randi(40,65), randi(72,85)],
+    headR: rand(.27,.33), scale: rand(.9,1.12),
+    eyes: pick(EYES), mouth: pick(MOUTH), blush: chance(.7),
+    hair: pick(HAIR), hairColor: chance(.18) ? pastel() : [randi(15,40), randi(25,55), randi(18,45)],
+    hat: chance(.65) ? pick(HATS) : 'none', hatColor: pastel(), hatColor2: pastel(),
+    acc: chance(.7) ? pick(ACC) : 'none', accColor: pastel(),
+    pattern: pick(PATTERN), patternColor: [randi(0,359), randi(50,80), randi(55,75)],
+    pants: chance(.5) ? [randi(200,280), randi(25,45), randi(40,60)] : pastel(),
+    shoes: chance(.5) ? [0,0,96] : [randi(0,359), randi(30,60), randi(35,60)],
+  };
+}
+const hx = c => hex(c[0],c[1],c[2]);
+const DARK = 0x3a2f45;
+const RIRI_LOOK = { body:'round', bodyColor:[268,62,80], head:[28,70,91], headR:.33, scale:1.08, eyes:'lash', mouth:'cat', blush:true,
+  hair:'long', hairColor:[225,45,20], hat:'crown', hatColor:[48,95,60], hatColor2:[330,80,70], acc:'none', accColor:[330,80,75],
+  pattern:'plain', patternColor:[0,0,100], pants:[268,55,82], shoes:[275,55,70], princess:true };
+function ensureRiri(list){
+  const old = list.find(d => d.id === RIRI_ID);
+  const r = { id:RIRI_ID, name:'리리', nt:0, look:RIRI_LOOK, status: old && SBYKEY[old.status] ? old.status : 'work', st: old ? old.st||0 : 0 };
+  return [r, ...list.filter(d => d.id !== RIRI_ID)];
+}
+
+function buildModel(L){
+  const root = new THREE.Group();
+  const body = new THREE.Group(); root.add(body); // 스케일용
+  body.scale.setScalar(L.scale);
+  const legY = .3;
+  const legs = [];
+  for (const s of [-1,1]) {
+    const piv = new THREE.Group(); piv.position.set(s*.11, legY, 0); body.add(piv);
+    put(piv, cap(.085,.14,hx(L.pants)), 0,-.13,0);
+    put(piv, sph(.1,hx(L.shoes),12), 0,-.27,.04).scale.set(1,.65,1.35);
+    legs.push(piv);
+  }
+  const hips = new THREE.Group(); hips.position.y = legY; body.add(hips);
+  const bc = hx(L.bodyColor);
+  let bh = .55, bw = .3, torso;
+  switch (L.body) {
+    case 'round': torso = sph(.3,bc,22); torso.scale.set(1,1.02,.9); torso.position.y=.29; bh=.58; bw=.3; break;
+    case 'tall': torso = cap(.22,.32,bc); torso.position.y=.38; bh=.74; bw=.22; break;
+    case 'square': torso = box(.52,.52,.4,bc,.14); torso.position.y=.27; bh=.54; bw=.26; break;
+    case 'pear': { const pts=[]; for (let i=0;i<=12;i++){ const t=i/12; pts.push(new THREE.Vector2(Math.sin(t*Math.PI)*(.2+.14*(1-t)) + .001, t*.62)); }
+      torso = M(new THREE.LatheGeometry(pts,24), bc); bh=.62; bw=.28; break; }
+    case 'wide': torso = sph(.34,bc,22); torso.scale.set(1.05,.8,.85); torso.position.y=.26; bh=.52; bw=.36; break;
+    case 'bean': torso = cap(.26,.14,bc); torso.position.y=.34; torso.rotation.z=.12; bh=.66; bw=.26; break;
+  }
+  hips.add(torso);
+  // 무늬
+  const pc = hx(L.patternColor);
+  if (L.pattern==='stripes') for (let i=0;i<3;i++){ const r = tor(bw*.98,.025,pc); r.rotation.x=Math.PI/2; r.position.y = bh*(.25+i*.22); hips.add(r); }
+  if (L.pattern==='dots') for (const [a,y] of [[.3,.35],[-.4,.55],[.1,.75],[-.15,.2],[.6,.6]]) { const d = sph(.04,pc,8); d.position.set(Math.sin(a)*bw*.98, bh*y, Math.cos(a)*bw*.92); hips.add(d); }
+  if (L.pattern==='belly') { const d = sph(bw*.65,0xfff6ea,16); d.scale.set(1,1.15,.35); d.position.set(0,bh*.42,bw*.72); hips.add(d); }
+  if (L.pattern==='buttons') for (let i=0;i<3;i++){ const d = sph(.032,0xffffff,8); d.position.set(0,bh*(.3+i*.2),bw*.93); hips.add(d); }
+  // 팔
+  const arms = [];
+  for (const s of [-1,1]) {
+    const piv = new THREE.Group(); piv.position.set(s*(bw+.05), bh*.78, 0); hips.add(piv);
+    put(piv, cap(.065,.16,bc), 0,-.13,0);
+    put(piv, sph(.075,hx(L.head),10), 0,-.27,0);
+    piv.rotation.z = s*.18;
+    arms.push(piv);
+  }
+  // 컵 (오른손)
+  const cup = new THREE.Group(); put(cup, cyl(.07,.06,.15,0xffffff,12), 0,0,0); put(cup, cyl(.072,.072,.04,pick([0xa47551,0xffb3c7,0x9fe3c4]),12), 0,.05,0);
+  cup.position.set(0,-.3,.07); arms[1].add(cup); cup.visible = false;
+  // 고양이 낚싯대
+  const wand = new THREE.Group();
+  const stick = cyl(.012,.012,.6,0xffd36e,6); stick.position.set(0,0,.28); stick.rotation.x = Math.PI/2; wand.add(stick);
+  put(wand, cyl(.004,.004,.3,0xffffff,4), 0,-.15,.58);
+  put(wand, sph(.05,0xff8fb8,8), 0,-.3,.58); put(wand, cone(.03,.12,0xb79ef0,6), 0,-.38,.58).rotation.x = Math.PI;
+  wand.position.set(0,-.3,.02); arms[1].add(wand); wand.visible = false;
+  // 담배
+  const cig = new THREE.Group(); const cb = cyl(.012,.012,.12,0xffffff,6); cb.rotation.x = Math.PI/2; cig.add(cb); put(cig, sph(.016,0xff7a3c,6), 0,0,.06);
+  cig.position.set(.02,-.3,.08); arms[1].add(cig); cig.visible = false;
+  const phone = new THREE.Group(); put(phone, new THREE.Mesh(new RoundedBoxGeometry(.075,.15,.022,2,.012), new THREE.MeshStandardMaterial({ color:0x3a3f55, roughness:.4 })), 0,0,0);
+  put(phone, new THREE.Mesh(new THREE.PlaneGeometry(.06,.12), new THREE.MeshStandardMaterial({ color:0x9fd8ff, emissive:0x5ab0ff, emissiveIntensity:.5 })), 0,0,.012);
+  phone.position.set(0,-.32,.06); arms[1].add(phone); phone.visible = false;
+  // 액세서리 (몸)
+  const ac = hx(L.accColor);
+  if (L.acc==='tie') { const t = box(.07,.24,.03,ac,.015); t.position.set(0,bh*.68,bw*.95+.01); t.rotation.x = -.15; hips.add(t); }
+  if (L.acc==='bowtie') { for (const s of [-1,1]) { const c = cone(.06,.1,ac,4); c.rotation.z = s*Math.PI/2; c.position.set(s*.05,bh*.9,bw*.85); hips.add(c); } put(hips, sph(.03,ac,8), 0,bh*.9,bw*.88); }
+  if (L.acc==='scarf') { const t = tor(bw*.75,.06,ac); t.rotation.x=Math.PI/2; t.position.y=bh*.95; hips.add(t); put(hips, box(.1,.22,.05,ac,.03), .1,bh*.75,bw*.85); }
+  if (L.acc==='backpack') put(hips, box(.36,.38,.18,ac,.08), 0,bh*.55,-bw-.05);
+  if (L.acc==='lanyard') { const t = tor(.13,.012,0x6a8cff,Math.PI); t.rotation.z=Math.PI; t.position.set(0,bh*.95,bw*.6); t.rotation.x=-.5; hips.add(t); put(hips, box(.1,.13,.02,0xffffff,.01), 0,bh*.6,bw*.97); }
+  // 머리
+  const head = new THREE.Group(); const R = L.headR; head.position.y = bh + R*.78; hips.add(head);
+  put(head, sph(R,hx(L.head),24));
+  const onFace = (x,y,z,r=R) => new THREE.Vector3(x,y,z).normalize().multiplyScalar(r);
+  // 눈
+  for (const s of [-1,1]) {
+    const p = onFace(s*.36, .08, .92);
+    let e;
+    switch (L.eyes) {
+      case 'dot': e = sph(.04,DARK,10); break;
+      case 'oval': e = sph(.045,DARK,10); e.scale.set(.8,1.3,.6); break;
+      case 'sleepy': e = tor(.04,.012,DARK,Math.PI); e.rotation.z = Math.PI; break;
+      case 'happy': e = tor(.045,.013,DARK,Math.PI); break;
+      case 'wide': e = new THREE.Group(); put(e, sph(.06,0xffffff,12)).scale.z=.5; put(e, sph(.033,DARK,10), 0,0,.03); break;
+      case 'lash': e = new THREE.Group(); put(e, sph(.042,DARK,10)).scale.set(.9,1.2,.6); put(e, box(.05,.012,.012,DARK,0), s*.04,.045,0).rotation.z = s*.6; break;
+    }
+    e.position.copy(p); e.lookAt(p.clone().multiplyScalar(2)); head.add(e);
+    if (L.eyes==='dot' || L.eyes==='oval') { const hl = sph(.012,0xffffff,6); hl.position.copy(onFace(s*.36-.04,.13,.92,R+.035)); head.add(hl); }
+  }
+  // 입
+  const mp = onFace(0,-.22,.97); let m;
+  switch (L.mouth) {
+    case 'smile': m = tor(.05,.012,0x8a3b4a,Math.PI); m.rotation.z = Math.PI; break;
+    case 'open': m = sph(.045,0x9a3b4a,10); m.scale.set(1,.75,.5); break;
+    case 'flat': m = box(.07,.014,.014,0x8a3b4a,0); break;
+    case 'cat': m = new THREE.Group(); for (const s of [-1,1]) { const t = tor(.022,.01,0x8a3b4a,Math.PI); t.rotation.z = Math.PI; t.position.x = s*.022; m.add(t); } break;
+    case 'o': m = sph(.025,0x9a3b4a,8); m.scale.z=.5; break;
+    case 'grin': m = new THREE.Group(); const w = sph(.06,0xffffff,12); w.scale.set(1,.55,.4); m.add(w); break;
+  }
+  m.position.copy(mp); m.lookAt(mp.clone().multiplyScalar(2)); head.add(m);
+  if (L.blush) for (const s of [-1,1]) { const b = sph(.045,0xffa3b8,10); b.scale.set(1,.6,.3); const p = onFace(s*.6,-.12,.78); b.position.copy(p); b.lookAt(p.clone().multiplyScalar(2)); head.add(b); }
+  if (L.acc==='mustache') for (const s of [-1,1]) { const b = sph(.045,0x4a3328,10); b.scale.set(1.4,.6,.5); const p = onFace(s*.12,-.13,.98); b.position.copy(p); b.rotation.z = s*-.3; head.add(b); }
+  if (L.acc==='glasses') for (const s of [-1,1]) { const g = tor(.065,.012,0x4a3f5c); const p = onFace(s*.36,.08,.92,R+.02); g.position.copy(p); g.lookAt(p.clone().multiplyScalar(2)); head.add(g); }
+  if (L.acc==='sunglasses') { const p = onFace(0,.08,1,R+.02); const g = box(R*1.35,.09,.04,0x2b2535,.03); g.position.copy(p); head.add(g); }
+  if (L.acc==='earring') put(head, sph(.03,0xffd36e,8), -R*.98,-.1,0);
+  if (L.acc==='headphones') { const t = tor(R+.03,.03,ac,Math.PI); head.add(t); for (const s of [-1,1]) put(head, cyl(.08,.08,.07,ac,14), s*(R+.02),0,0).rotation.z = Math.PI/2; }
+  // 머리카락
+  const hc = hx(L.hairColor);
+  const capHair = (k=1.05, cut=.55) => { const g = M(cg(`hair${R.toFixed(3)}${k}${cut}`, () => new THREE.SphereGeometry(R*k,22,14,0,Math.PI*2,0,Math.PI*cut)), hc); g.rotation.x = -.35; return g; };
+  if (['bowl','long','bun','pony','twin','curly'].includes(L.hair)) head.add(capHair(1.06, L.hair==='bowl'?.5:.42));
+  if (L.hair==='long') put(head, box(R*1.9,R*1.5,R*.6,hc,.12), 0,-R*.35,-R*.6);
+  if (L.hair==='bun') put(head, sph(R*.38,hc,12), 0,R*1.05,-R*.25);
+  if (L.hair==='pony') { put(head, sph(R*.3,hc,12), 0,R*.3,-R*1.05); put(head, cap(R*.18,R*.5,hc), 0,-R*.15,-R*1.12); }
+  if (L.hair==='twin') for (const s of [-1,1]) put(head, sph(R*.3,hc,12), s*R*.95,R*.2,-R*.2);
+  if (L.hair==='curly') for (let i=0;i<7;i++){ const a = i/7*Math.PI*2; put(head, sph(R*.26,hc,10), Math.cos(a)*R*.62, R*.72, Math.sin(a)*R*.62-.04); }
+  if (L.hair==='spiky') for (let i=0;i<6;i++){ const a = i/6*Math.PI*2; const c = cone(R*.2,R*.55,hc,8); c.position.set(Math.cos(a)*R*.45, R*.88, Math.sin(a)*R*.45-.03); c.rotation.set(Math.sin(a)*.5,0,-Math.cos(a)*.5); head.add(c); }
+  if (L.hair==='mohawk') put(head, box(R*.25,R*.5,R*1.4,hc,.05), 0,R*.95,-.03);
+  // 모자
+  const h1 = hx(L.hatColor), h2 = hx(L.hatColor2), top = R*.82;
+  const hatKind = (L.hat === 'crown' && !L.princess) ? 'party' : L.hat; // 왕관은 리리만
+  switch (hatKind) {
+    case 'beanie': { head.add(capHair(1.1,.45)).material = mat(h1); const g = head.children[head.children.length-1]; g.material = mat(h1); put(head, tor(R*.92,.05,h2), 0,R*.38,-.08).rotation.x = Math.PI/2+.35; put(head, sph(.07,h2,10), 0,R*1.12,-.08); break; }
+    case 'cap': { const g = capHair(1.08,.42); g.material = mat(h1); head.add(g); const b = cyl(R*.6,R*.6,.03,h1,20); b.scale.z = .7; b.position.set(0,R*.55,R*.75); head.add(b); break; }
+    case 'top': put(head, cyl(R*.95,R*.95,.04,0x3a3348,24), 0,top,0); put(head, cyl(R*.6,R*.6,R*1.1,0x3a3348,20), 0,top+R*.55,0); put(head, cyl(R*.62,R*.62,.08,h1,20), 0,top+.08,0); break;
+    case 'crown': { if (L.princess) break; put(head, cyl(R*.55,R*.55,.14,0xffd36e,16), 0,top+.04,0); for (let i=0;i<5;i++){ const a=i/5*Math.PI*2; put(head, cone(.05,.14,0xffd36e,6), Math.cos(a)*R*.5, top+.16, Math.sin(a)*R*.5); } put(head, sph(.03,0xff7fa0,8), 0,top+.05,R*.56); break; }
+    case 'party': put(head, cone(R*.45,R*1.2,h1,16), 0,top+R*.5,0); put(head, sph(.06,h2,10), 0,top+R*1.12,0); break;
+    case 'bucket': put(head, cyl(R*1.15,R*1.15,.04,h1,24), 0,top-.02,0); put(head, cyl(R*.72,R*.85,R*.5,h1,20), 0,top+R*.2,0); break;
+    case 'beret': { const b = sph(R*.85,h1,18); b.scale.set(1,.3,1); b.position.set(-.04,top+.02,0); b.rotation.z = .2; head.add(b); put(head, cyl(.02,.02,.06,h1,6), -.04,top+.12,0); break; }
+    case 'flower': for (let i=0;i<5;i++){ const a=i/5*Math.PI*2; put(head, sph(.055,h1,8), R*.55+Math.cos(a)*.07, top+.02+Math.sin(a)*.07, R*.35); } put(head, sph(.045,0xffd36e,8), R*.55,top+.02,R*.38); break;
+    case 'bunny': for (const s of [-1,1]) { const e = cap(.06,.3,h1); e.position.set(s*R*.4,top+.22,0); e.rotation.z = s*-.18; head.add(e); const i2 = cap(.03,.22,0xffc0d0); i2.position.set(s*R*.4,top+.22,.04); i2.rotation.z = s*-.18; head.add(i2); } break;
+    case 'antenna': for (const s of [-1,1]) { const c = cyl(.012,.012,.25,DARK,6); c.position.set(s*.08,top+.12,0); c.rotation.z = s*-.3; head.add(c); put(head, sph(.045, s<0?h1:h2,10), s*.12,top+.25,0); } break;
+    case 'sprout': put(head, cyl(.012,.012,.14,0x5aa86e,6), 0,top+.07,0); for (const s of [-1,1]) { const l = sph(.06,0x7ed39a,10); l.scale.set(1.4,.4,.8); l.position.set(s*.07,top+.15,0); l.rotation.z = s*.4; head.add(l); } break;
+    case 'helmet': { const g = capHair(1.12,.46); g.material = mat(0xffd36e); head.add(g); put(head, box(.06,.05,R*1.2,0xffffff,.02), 0,R*.95,0); break; }
+    case 'strawhat': put(head, cyl(R*1.45,R*1.45,.035,0xf6dca0,28), 0,top-.03,0); put(head, cyl(R*.7,R*.8,R*.42,0xf6dca0,20), 0,top+R*.16,0); put(head, cyl(R*.81,R*.81,.06,h1,20), 0,top+.04,0); break;
+    case 'bow': for (const s of [-1,1]) { const c = cone(.09,.16,h1,4); c.rotation.z = s*Math.PI/2; c.position.set(R*.5+s*.08, top+.03, R*.1); head.add(c); } put(head, sph(.04,h1,8), R*.5,top+.03,R*.1); break;
+  }
+  if (L.princess) {
+    const skirtMat = new THREE.MeshStandardMaterial({ color:0xcdb4f5, roughness:.75, side:THREE.DoubleSide });
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(.26,.44,.3,28,1,true), skirtMat); skirt.position.y = .1; skirt.castShadow = true; hips.add(skirt);
+    const fr = tor(.44,.035,0xffffff); fr.rotation.x = Math.PI/2; fr.position.y = -.05; hips.add(fr);
+    for (let i=0;i<9;i++){ const a = -Math.PI*.15 + i/8*Math.PI*1.3 - Math.PI*.5; put(hips, sph(.022,0xfffaf2,8), Math.cos(a+Math.PI)*.17, bh*.93 - Math.sin(Math.abs(i-4)/4*Math.PI/2)*-.0 - (4-Math.abs(i-4))*.012, Math.sin(-a)*.17 + .1); }
+    put(hips, sph(.04,0xff7fb0,10), 0,bh*.8,bw*.95);
+    // 왕관 보석 + 반짝이
+    const top = R*.82;
+    put(head, cyl(R*.6,R*.6,.18,0xffd36e,20), 0,top+.07,0);
+    for (let i=0;i<7;i++){ const a = i/7*Math.PI*2; put(head, cone(.055,.17,0xffd36e,6), Math.cos(a)*R*.56, top+.22, Math.sin(a)*R*.56); put(head, sph(.022, i%2?0xff6fa8:0x7fd0ff,8), Math.cos(a)*R*.62, top+.07, Math.sin(a)*R*.62); }
+    put(head, sph(.05,0xff4f8f,10), 0,top+.09,R*.62);
+    put(head, sph(.035,0xfff2a8,8), 0,top+.34,0);
+    // 리본 + 속눈썹 하이라이트
+    for (const sx of [-1,1]) { const c = cone(.08,.15,0xff8fbf,4); c.rotation.z = sx*Math.PI/2; c.position.set(sx*.08,.05,-R*1.0); head.add(c); }
+    put(head, sph(.035,0xff8fbf,8), 0,.05,-R*1.02);
+    for (const sx of [-1,1]) { const hl = sph(.014,0xffffff,6); hl.position.copy(new THREE.Vector3(sx*.36-.05,.15,.92).normalize().multiplyScalar(R+.03)); head.add(hl); }
+  }
+  return { root, body, hips, head, legs, arms, cup, wand, cig, phone };
+}
+
+// ================================================================ 고양이 모델
+const CAT_COATS = [
+  { key:'cheese',   name:'치즈',   base:0xffb562, stripe:0xe8873a },
+  { key:'mackerel', name:'고등어', base:0xa8a39c, stripe:0x5d5650, chest:0xf4efe8 },
+  { key:'calico',   name:'삼색이', base:0xfdfaf4, patches:[[0xf3a052,[[.1,.2,-.05,.13],[-.12,.16,.12,.1]],[[.1,.08,0,.08]]],[0x3d3236,[[-.1,.22,-.15,.11],[.12,.12,.18,.08]],[[-.08,.1,.02,.07]]]] },
+  { key:'tuxedo',   name:'턱시도', base:0x2c2833, chest:0xffffff, paws:0xffffff, muzzle:0xffffff },
+  { key:'tortie',   name:'카오스', base:0x3a2a26, patches:[[0xc96b2e,[[.12,.2,-.1,.1],[-.1,.15,.1,.09],[0,.24,.05,.07]],[[.09,.08,.02,.07],[-.07,.12,-.02,.05]]],[0x7a4a2c,[[-.13,.2,-.12,.08],[.05,.12,.2,.06]],[[0,.13,.03,.05]]]] },
+  { key:'cow',      name:'젖소',   base:0xfdfdfb, patches:[[0x26222c,[[.12,.22,-.08,.12],[-.13,.18,.13,.1],[0,.25,.22,.06]],[[.1,.09,0,.09]]]] },
+];
+function buildCat(coat){
+  const root = new THREE.Group(); const g = new THREE.Group(); root.add(g); g.scale.setScalar(.8);
+  const body = cap(.14,.3,coat.base); body.rotation.x = Math.PI/2; body.position.set(0,.3,0); g.add(body);
+  const legs = [];
+  for (const [x,z] of [[-.09,.15],[.09,.15],[-.09,-.16],[.09,-.16]]) { const piv = new THREE.Group(); piv.position.set(x,.24,z); g.add(piv); put(piv, cap(.045,.12,coat.base), 0,-.1,0); put(piv, sph(.05,coat.paws||coat.base,8), 0,-.19,.015).scale.y=.7; legs.push(piv); }
+  const head = new THREE.Group(); head.position.set(0,.47,.27); g.add(head);
+  put(head, sph(.15,coat.base,18)).scale.set(1.08,.95,.95);
+  for (const s of [-1,1]) { const e = cone(.06,.12,coat.base,8); e.position.set(s*.085,.13,-.01); e.rotation.z = s*-.3; head.add(e); const i = cone(.035,.07,0xffb3c7,6); i.position.set(s*.085,.125,.02); i.rotation.z = s*-.3; head.add(i); }
+  const eyes = [];
+  for (const s of [-1,1]) { const e = sph(.03, coat.key==='cheese'?0x6fbf5a:coat.key==='tuxedo'?0x9bd36a:0xe0b23a, 10); e.position.set(s*.06,.02,.13); e.scale.z=.5; head.add(e); const p = sph(.016,0x1d1a20,8); p.position.set(s*.06,.02,.145); p.scale.set(.5,1.2,.4); head.add(p); eyes.push(e,p); }
+  const closed = []; for (const s of [-1,1]) { const t = tor(.03,.008,0x1d1a20,Math.PI); t.position.set(s*.06,.01,.142); t.rotation.z = Math.PI; t.visible=false; head.add(t); closed.push(t); }
+  const happy = []; for (const s of [-1,1]) { const t = tor(.03,.008,0x1d1a20,Math.PI); t.position.set(s*.06,.0,.142); t.visible=false; head.add(t); happy.push(t); }
+  put(head, sph(.02,0xff9bb0,8), 0,-.03,.15);
+  const tongue = sph(.025,0xff7f99,8); tongue.position.set(0,-.08,.13); tongue.scale.set(1,.5,1); tongue.visible=false; head.add(tongue);
+  if (coat.muzzle) { const m = sph(.08,coat.muzzle,12); m.position.set(0,-.05,.08); m.scale.set(1,.7,.8); head.add(m); }
+  if (coat.chest) { const c = sph(.11,coat.chest,12); c.position.set(0,.28,.2); c.scale.set(.9,1,.6); g.add(c); }
+  if (coat.stripe) {
+    for (let i=0;i<4;i++){ const r = tor(.142,.016,coat.stripe,Math.PI); r.position.set(0,.3,-.15+i*.1); r.rotation.y = 0; g.add(r); }
+    for (const s of [-1,0,1]) put(head, box(.02,.06,.02,coat.stripe,.008), s*.04,.13,.06);
+  }
+  for (const [col, bl, hl] of (coat.patches||[])) {
+    for (const [x,y,z,r] of bl) { const p = sph(r,col,10); p.position.set(x*.85,y+.1,z); p.scale.set(.55,.75,1); g.add(p); }
+    for (const [x,y,z,r] of hl) { const p = sph(r,col,10); p.position.set(x,y,z); p.scale.set(.8,.8,.6); head.add(p); }
+  }
+  // 꼬리
+  const tailPiv = new THREE.Group(); tailPiv.position.set(0,.33,-.28); g.add(tailPiv);
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0), new THREE.Vector3(0,.1,-.12), new THREE.Vector3(0,.28,-.14), new THREE.Vector3(0,.38,-.06)]);
+  const tail = M(new THREE.TubeGeometry(curve,16,.035,8,false), (coat.key==='cow'||coat.key==='tortie') ? (coat.patches[0][0]) : coat.key==='tuxedo' ? coat.base : coat.base); tailPiv.add(tail);
+  put(tailPiv, sph(.04, coat.key==='calico'?0xf3a052:coat.stripe||coat.base,8), 0,.38,-.06);
+  // 손 (상호작용)
+  const hand = new THREE.Group();
+  put(hand, cyl(.07,.07,.2,0xc9b3f2,12), 0,.12,0);
+  put(hand, sph(.09,0xffd9c2,12), 0,0,0).scale.set(1,.7,1.1);
+  for (let i=0;i<4;i++) put(hand, cap(.022,.06,0xffd9c2), -.06+i*.04,-.02,.1).rotation.x = Math.PI/2;
+  put(hand, cap(.025,.05,0xffd9c2), .09,-.01,.03).rotation.z = 1;
+  hand.visible = false; root.add(hand);
+  // 츄르 스틱 (끝이 고양이 입 쪽, 뒤에서부터 짜짐)
+  const churu = new THREE.Group(); const pouch = new THREE.Group(); churu.add(pouch);
+  put(pouch, box(.1,.026,.42,0xffffff,.012), 0,0,.24);
+  put(pouch, box(.104,.03,.16,0xff8fb8,.012), 0,0,.26);
+  put(pouch, box(.104,.03,.03,0xffd36e,.01), 0,0,.15);
+  put(pouch, box(.104,.03,.025,0xb79ef0,.01), 0,0,.41);
+  put(pouch, sph(.018,0xffffff,8), -.022,.017,.27); put(pouch, sph(.018,0xffffff,8), .022,.017,.27);
+  put(pouch, box(.06,.022,.06,0xffffff,.01), 0,0,.01);
+  const paste = sph(.03,0xe8b98a,10); paste.scale.set(1,.7,1.2); paste.position.set(0,-.004,-.03); churu.add(paste);
+  churu.userData.pouch = pouch; churu.userData.paste = paste;
+  churu.rotation.x = -.45; churu.visible=false; root.add(churu);
+  // 낚싯대 장난감 (놀아주기)
+  const toy = new THREE.Group(); const toyLine = cyl(.004,.004,.5,0xffffff,4); toyLine.position.y = .25; toy.add(toyLine);
+  const feather = new THREE.Group(); put(feather, sph(.05,0xff8fb8,10)); for (let i=0;i<3;i++){ const f = cone(.025,.16, [0xb79ef0,0x9fe3c4,0xffd36e][i],6); f.position.set((i-1)*.03,-.09,0); f.rotation.z = (i-1)*.4 + Math.PI; feather.add(f); }
+  toy.add(feather); const stick = cyl(.012,.012,.7,0xffd36e,6); stick.rotation.z = Math.PI/2.4; stick.position.set(.3,.6,0); toy.add(stick);
+  toy.visible = false; root.add(toy);
+  root.traverse(o => { o.userData.catRoot = root; });
+  return { root, g, body, legs, head, tailPiv, eyes, closed, happy, tongue, hand, churu, toy };
+}
+
+// ================================================================ 상태 / 동기화
+const LS_KEY = 'chongmu-office-v2', LS_ME = 'chongmu-island-me';
+const clientId = uid();
+// 서버 저장(db) 모드
+let DB = null, USER = null, myUid = null, isOwner = false, isAdmin = false, canWrite = true, dbMode = false;
+const charOwner = {}; // charId -> userId
+function canControl(c){ if (!c) return false; if (!dbMode) return true; if (!canWrite) return false; const o = charOwner[c.id]; return !o || o === myUid || isAdmin; }
+let roster = null, chars = [], selectedId = null, meId = null;
+
+function makeRoster(n=10){
+  const names = new Set(), list = [];
+  while (list.length < n) { const name = `${pick(ADJ_W)} ${pick(NOUN_W)}`; if (names.has(name)) continue; names.add(name);
+    list.push({ id:uid(), name, look:makeLook(), status: pick(STATUSES).key, st:0 }); }
+  return list;
+}
+function loadLocal(){ try { const r = JSON.parse(localStorage.getItem(LS_KEY)); if (r && Array.isArray(r.list) && r.list.length) return r; } catch(e){} return null; }
+function serialList(){ return chars.map(c => ({ id:c.id, name:c.name, nt:c.nt||0, look:c.look, status:c.status, st:c.st })); }
+function saveLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ ver:roster.ver, fresh:false, list:serialList() })); } catch(e){} }
+
+const overlay = document.getElementById('overlay');
+const charGroup = new THREE.Group(); scene.add(charGroup);
+
+function freeSlot(c){ if (c.slot) { releaseCat(c.slot); c.slot.occ = null; c.slot = null; } c.action = null; }
+function claimSlot(c, zone){
+  if (zone === 'work') { const s = SLOTS.work[c.deskIdx]; s.occ = c.id; return s; }
+  const mine = SLOTS[zone].find(s => s.only === c.id);
+  if (mine) { mine.occ = c.id; return mine; }
+  const free = SLOTS[zone].filter(s => !s.occ && !s.only);
+  let s = free.length ? pick(free) : null;
+  if (!s) { // 자리 없으면 근처에 서 있기
+    const base = SLOTS[zone][0];
+    s = { pos:[base.pos[0]+rand(-1,1), base.pos[1], base.pos[2]+rand(.6,1.2)], ry:Math.PI, pose: zone==='toilet'?'wait':'chatStand', via:base.via, approach:[], zone, temp:true };
+  }
+  s.occ = c.id; return s;
+}
+
+function buildChars(list){
+  for (const c of chars) { charGroup.remove(c.m.root); c.tag.remove(); if (c.bub) c.bub.remove(); }
+  for (const k in SLOTS) SLOTS[k].forEach(s => s.occ = null);
+  const order = [...Array(SLOTS.work.length).keys()].sort(() => Math.random()-.5);
+  chars = list.map((d, i) => {
+    const m = buildModel(d.look);
+    m.root.traverse(o => { o.userData.charId = d.id; });
+    charGroup.add(m.root);
+    const tag = document.createElement('div'); tag.className = 'tag'; overlay.appendChild(tag);
+    const c = { ...d, m, tag, deskIdx: hashIdx(d.id, i), path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
+    return c;
+  });
+  // 책상 중복 방지
+  const used = new Set();
+  for (const c of chars) { while (used.has(c.deskIdx)) c.deskIdx = (c.deskIdx+1) % SLOTS.work.length; used.add(c.deskIdx); }
+  for (const c of chars) { const s = claimSlot(c, c.status); placeAt(c, s); }
+  if (!chars.find(c => c.id === selectedId)) selectedId = null;
+  if (!chars.find(c => c.id === meId)) meId = null;
+  makePortraits(); renderPanel(true);
+}
+function hashIdx(id, i){ let h = 0; for (const ch of id) h = (h*31 + ch.charCodeAt(0)) >>> 0; return (h + i) % SLOTS.work.length; }
+function placeAt(c, s){
+  c.slot = s; c.path = []; c.pose = s.pose; if (s.catSpot) setTimeout(() => summonCat(s, c), 50); c.m.root.position.set(s.pos[0], s.pos[1], s.pos[2]); c.m.root.rotation.y = s.ry;
+}
+function routeTo(c, zone){
+  const from = c.slot; const curPos = c.m.root.position;
+  freeSlot(c);
+  const s = claimSlot(c, zone);
+  const pts = [];
+  if (from) { for (const a of [...from.approach].reverse()) pts.push(a); }
+  const startNode = from ? from.via : nearestNode(curPos);
+  for (const n of shortest(startNode, s.via)) pts.push(NODES[n]);
+  for (const a of s.approach) pts.push(a);
+  pts.push(s.pos);
+  c.path = pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+  c.slot = s; c.pose = 'walk';
+}
+function nearestNode(p){ let best=null, bd=1e9; for (const k in NODES){ const n = NODES[k]; const d = Math.hypot(n[0]-p.x, n[2]-p.z) + Math.abs(n[1]-p.y)*5; if (d<bd){bd=d;best=k;} } return best; }
+
+function say(c, text, ms=3000, cls=''){
+  if (c.bub) c.bub.remove();
+  const b = document.createElement('div'); b.className = 'bub' + (cls ? ' '+cls : ''); b.textContent = text; overlay.appendChild(b);
+  c.bub = b; c.bubUntil = performance.now() + ms;
+  if (text === '여보세요') { b.textContent = '📞 여보세요?'; c.bubUntil = performance.now() + 4500; c.phoneUntil = performance.now() + 5200; }
+}
+function setStatus(id, key, opts={}){
+  const c = chars.find(c => c.id === id); if (!c || !SBYKEY[key]) return;
+  const t = opts.t || Date.now();
+  if (opts.remote && t <= c.st) return;
+  const changed = c.status !== key;
+  c.status = key; c.st = t;
+  if (changed) { routeTo(c, key); say(c, pick(SBYKEY[key].lines)); toast(`${c.name} → ${SBYKEY[key].emoji} ${SBYKEY[key].label}`); }
+  saveLocal(); renderPanel();
+  if (!opts.remote) { if (dbMode) dbWrite(id, { status:key, st:t }); else send({ kind:'status', id, status:key, t, ver:roster.ver }); }
+}
+// 같은 문서에는 한 번에 한 번만 쓰기
+const writeQ = {};
+function dbWrite(id, patch){
+  const q = writeQ[id] || (writeQ[id] = { busy:false, pending:null });
+  q.pending = Object.assign(q.pending || {}, patch);
+  if (q.busy) return;
+  (async () => { q.busy = true;
+    while (q.pending) { const body = q.pending; q.pending = null;
+      try { await DB.doc('chars/' + id).update(body); }
+      catch (e) { if (e && e.code === 'permission-denied') { toast('🔒 이 캐릭터는 바꿀 권한이 없어요'); renderPanel(true); } else if (e && e.code === 'invalid_argument') { canWrite = false; toast('🔒 이 페이지는 보기 전용이라 바꿀 수 없어요'); renderPanel(true); } else if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 600 + Math.random()*600)); try { await DB.doc('chars/' + id).update(body); } catch(_){} } }
+    }
+    q.busy = false; })();
+}
+
+const transports = [];
+function send(msg){ msg.from = clientId; for (const tr of transports) { try { tr(msg); } catch(e){} } }
+function snapshot(){ return { kind:'snapshot', ver:roster.ver, fresh:roster.fresh, list:serialList() }; }
+function receive(raw){
+  const m = raw && raw.kind ? raw : (raw && raw.data && raw.data.kind ? raw.data : null);
+  if (!m || m.from === clientId) return;
+  if (m.kind === 'action' && (!dbMode || true)) { if (m.ver === roster.ver || dbMode) triggerAction(m.id, m.type, { remote:true }); return; }
+  if (dbMode) return;
+  if (m.kind === 'hello') { send(snapshot()); return; }
+  if (m.kind === 'snapshot' && Array.isArray(m.list)) {
+    if (m.ver === roster.ver) { for (const d of m.list) { const c = chars.find(x => x.id === d.id); if (c && d.st > c.st) setStatus(d.id, d.status, { remote:true, t:d.st }); if (c && (d.nt||0) > (c.nt||0)) setName(d.id, d.name, { remote:true, t:d.nt }); } return; }
+    let adopt = false;
+    if (roster.fresh && !m.fresh) adopt = true;
+    else if (roster.fresh && m.fresh) adopt = m.ver < roster.ver;
+    else if (!roster.fresh && !m.fresh) adopt = m.ver > roster.ver;
+    if (adopt && m.list.every(d => SBYKEY[d.status])) { const L2 = ensureRiri(m.list); roster = { ver:m.ver, fresh:!!m.fresh, list:L2 }; buildChars(L2); saveLocal(); toast('🔄 다른 사람의 사무실과 동기화했어요'); }
+    return;
+  }
+  if (m.kind === 'status' && m.ver === roster.ver) setStatus(m.id, m.status, { remote:true, t:m.t });
+  if (m.kind === 'rename' && m.ver === roster.ver) setName(m.id, m.name, { remote:true, t:m.t });
+}
+let peerCount = 0, roomOn = false, bcOn = false;
+function updateConn(){
+  const dot = document.getElementById('connDot'), txt = document.getElementById('connText');
+  if (dbMode) { dot.classList.add('on'); txt.textContent = (canWrite ? '모두와 실시간 공유 중' : '보기 전용으로 공유 중') + (roomOn ? ` · 지금 ${Math.max(1,peerCount)}명` : ''); }
+  else if (roomOn) { dot.classList.add('on'); txt.textContent = `실시간 접속 ${Math.max(1,peerCount)}명`; }
+  else if (bcOn) { dot.classList.add('on'); txt.textContent = '탭 간 실시간 동기화'; }
+  else { dot.classList.remove('on'); txt.textContent = '혼자 보는 중'; }
+}
+function initSync(){
+  try { const bc = new BroadcastChannel('chongmu-office'); bc.onmessage = e => receive(e.data); transports.push(m => bc.postMessage(m)); bcOn = true; } catch(e){}
+  updateConn(); send({ kind:'hello' });
+  (async () => { try {
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    const room = await window.claude.use('room'); if (!room) return;
+    room.on('sync', d => receive(d));
+    if (typeof room.onPeers === 'function') room.onPeers(p => { peerCount = Array.isArray(p) ? p.length : (p && typeof p === 'object' ? Object.keys(p).length : 1); updateConn(); });
+    transports.push(m => { const r = room.emit('sync', m); if (r && r.catch) r.catch(() => {}); });
+    roomOn = true; updateConn();
+    try { const me = chars.find(c => c.id === meId); room.presence({ name: me ? me.name : '구경꾼' }); } catch(e){}
+    send({ kind:'hello' });
+  } catch(e){} })();
+}
+
+// ================================================================ 포즈 애니메이션
+function lerpTo(obj, key, v, k){ obj[key] += (v - obj[key]) * k; }
+function animateChar(c, t, dt){
+  const m = c.m, k = Math.min(1, dt*9);
+  const T = { y:0, tilt:0, sway:0, legL:0, legR:0, armLx:0, armRx:0, armLz:.18, armRz:-.18, headY:0, headX:0, cup:false, vis:true };
+  const tt = t + c.t0;
+  const seatY = c.slot && c.slot.seat ? c.slot.seat + .04 - .3*c.look.scale : 0;
+  const sit = () => { T.y = seatY; T.legL = T.legR = -Math.PI/2 + .05; };
+  switch (c.pose) {
+    case 'walk': { const ph = c.phase; T.legL = Math.sin(ph)*.7; T.legR = -Math.sin(ph)*.7; T.armLx = -Math.sin(ph)*.6; T.armRx = Math.sin(ph)*.6; T.y = Math.abs(Math.sin(ph))*.05; break; }
+    case 'type': sit(); T.armLx = -1.25 + Math.sin(tt*17)*.1; T.armRx = -1.25 + Math.sin(tt*17+2)*.1; T.armLz = .05; T.armRz = -.05; T.headX = .12 + Math.sin(tt*.7)*.04;
+      if (c.phoneUntil && performance.now() < c.phoneUntil) { // 전화 받기: 오른손 귀에, 왼손은 천천히 메모
+        T.phone = true; T.armRx = -2.35; T.armRz = .62; T.armLx = -1.1 + Math.sin(tt*4)*.06; T.headX = .02; T.headY = -.25 + Math.sin(tt*1.6)*.08; T.tilt = .06;
+      } else if ((tt % 14) < 1.6) { T.armLx = T.armRx = -2.8; T.armLz = .4; T.armRz = -.4; T.tilt = -.2; } // 가끔 기지개
+      break;
+    case 'drink': case 'drinkStand': { if (c.pose==='drink') sit(); T.cup = true; const cyc = tt % 5;
+      if (cyc < 1.3) { T.armRx = -2.15; T.armRz = .55; T.headX = -.18; } else { T.armRx = -.95; T.armRz = .1; }
+      T.headY = Math.sin(tt*.6)*.25; break; }
+    case 'chat': case 'chatStand': { if (c.pose==='chat') sit(); T.headY = Math.sin(tt*.9)*.45; const g = (tt % 3.4) < 1.2; T.armLx = g ? -1.0 + Math.sin(tt*8)*.35 : -.2; T.armLz = g ? .5 : .18; T.y += c.pose==='chatStand' ? Math.abs(Math.sin(tt*2))*.02 : 0; break; }
+    case 'brew': T.cup = (tt % 6) > 3; T.armLx = -1.2; T.armRx = T.cup ? -1.0 : -1.3 + Math.sin(tt*6)*.08; T.headX = .15; break;
+    case 'order': T.armRx = -1.7 + Math.sin(tt*4)*.15; T.armRz = .1; T.headX = -.12; T.headY = Math.sin(tt*.8)*.2; break;
+    case 'hidden': T.vis = false; break;
+    case 'wash': T.armLx = T.armRx = -1.15; T.armLz = .35 + Math.sin(tt*11)*.18; T.armRz = -.35 - Math.sin(tt*11)*.18; T.headX = .25; break;
+    case 'wait': T.legL = Math.sin(tt*10)*.18; T.legR = -Math.sin(tt*10)*.18; T.y = Math.abs(Math.sin(tt*10))*.02; T.armLx = T.armRx = -.5; T.armLz = .6; T.armRz = -.6; T.headY = Math.sin(tt*1.2)*.4; break;
+    case 'lean': T.tilt = .32; T.armLx = T.armRx = -1.25; T.headX = -.2 + Math.sin(tt*.5)*.08; T.legL = .1; break;
+    case 'stretch': { const cyc = tt % 6; if (cyc < 3.5) { T.armLx = T.armRx = -3.0; T.armLz = .15; T.armRz = -.15; T.sway = Math.sin(tt*1.6)*.22; T.headX = -.15; } else { T.armLz = 1.4 + Math.sin(tt*3)*.2; T.armRz = -1.4 - Math.sin(tt*3)*.2; T.sway = Math.sin(tt*3)*.15; } break; }
+    case 'sleep': { const s = c.look.scale; T.y = c.slot.bed + .24*s - .3*s; T.tilt = -Math.PI/2 + .06; T.legL = T.legR = -Math.PI/2 + .06; T.armLx = T.armRx = -.15 + Math.sin(tt*1.4)*.03; T.armLz = .35; T.armRz = -.35; T.headX = -.25; T.headY = Math.sin(tt*.25)*.15; break; }
+    case 'petcat': { const s = c.look.scale; T.y = -.13*s; T.legL = T.legR = -1.3; T.tilt = .38; T.armRx = -1.05 + Math.sin(tt*3)*.28; T.armRz = -.05; T.armLx = -.7; T.armLz = .3; T.headX = .3; T.headY = Math.sin(tt*.6)*.15; break; }
+    case 'wand': T.wand = true; T.armRx = -1.45 + Math.sin(tt*6)*.45; T.armRz = -.15 + Math.sin(tt*3.3)*.4; T.armLx = -.3; T.headX = .22; T.y = Math.abs(Math.sin(tt*3))*.02; break;
+    case 'lie': T.y = seatY - .02; T.tilt = -1.05; T.legL = T.legR = -1.45; T.armLx = T.armRx = -2.7; T.armLz = .9; T.armRz = -.9; T.headX = .2; break;
+    default: T.y = Math.abs(Math.sin(tt*2))*.01; T.headY = Math.sin(tt*.7)*.2;
+  }
+  // 옥상 액션 (담타 / 소리지르기)
+  if (c.action && !c.path.length && c.status === 'roof') {
+    const a = c.action, now = performance.now();
+    if (!a.start) { a.start = now; a.until = now + (a.type==='shout' ? 7500 : 10000); a.next = 0; }
+    if (now > a.until) c.action = null;
+    else {
+      Object.assign(T, { y:0, tilt:0, sway:0, legL:0, legR:0, armLx:0, armRx:0, armLz:.18, armRz:-.18, headY:0, headX:0, cup:false, wand:false });
+      const el = (now - a.start)/1000;
+      if (a.type === 'smoke') {
+        T.cig = true; const cyc = el % 4;
+        if (cyc < 1.2) { T.armRx = -2.15; T.armRz = .55; } else { T.armRx = -.75; T.armRz = .05; T.headX = -.2;
+          if (cyc < 2.4 && chance(dt*14)) spawnSmoke(c); }
+        T.armLz = .05; T.legL = .12;
+        if (el > a.next) { a.next = el + 3.5; say(c, pick(['후우~','하…','살 것 같다','잠깐만 쉬자']), 2200); }
+      } else {
+        T.armLx = T.armRx = -2.25; T.armLz = .85; T.armRz = -.85; T.headX = -.38; T.tilt = -.12; T.y = Math.abs(Math.sin(tt*14))*.05;
+        if (el > a.next) { a.next = el + 2.4; say(c, pick(SHOUTS), 2200, 'shout'); }
+      }
+    }
+  }
+  const cur = c.cur;
+  if (cur.y === undefined) Object.assign(cur, T);
+  for (const key of ['y','tilt','sway','legL','legR','armLx','armRx','armLz','armRz','headY','headX']) lerpTo(cur, key, T[key], key==='y' && c.pose==='walk' ? 1 : k);
+  m.body.position.y = cur.y;
+  m.hips.rotation.x = cur.tilt; m.hips.rotation.z = cur.sway;
+  m.legs[0].rotation.x = cur.legL; m.legs[1].rotation.x = cur.legR;
+  m.arms[0].rotation.x = cur.armLx; m.arms[1].rotation.x = cur.armRx;
+  m.arms[0].rotation.z = cur.armLz; m.arms[1].rotation.z = cur.armRz;
+  m.head.rotation.y = cur.headY; m.head.rotation.x = cur.headX;
+  m.cup.visible = T.cup; m.wand.visible = !!T.wand; m.cig.visible = !!T.cig; m.phone.visible = !!T.phone; m.root.visible = T.vis;
+}
+
+function stepChars(t, dt){
+  for (const c of chars) {
+    if (c.path.length) {
+      const p = c.m.root.position, target = c.path[0];
+      const d = p.distanceTo(target), sp = 2.6*dt;
+      if (d <= sp) { p.copy(target); c.path.shift(); }
+      else {
+        const dir = target.clone().sub(p).normalize(); p.addScaledVector(dir, sp);
+        if (Math.abs(dir.x) + Math.abs(dir.z) > .2) { const want = Math.atan2(dir.x, dir.z); let dr = want - c.m.root.rotation.y; while (dr > Math.PI) dr -= Math.PI*2; while (dr < -Math.PI) dr += Math.PI*2; c.m.root.rotation.y += dr*Math.min(1,dt*12); }
+      }
+      c.phase = (c.phase||0) + dt*11; c.pose = 'walk';
+      if (!c.path.length) { c.pose = c.slot.pose; c.m.root.rotation.y = c.slot.ry; if (c.slot.catSpot) summonCat(c.slot, c); }
+    } else {
+      // 같은 구역에서 가끔 자리 바꾸기 (업무 제외)
+      c.nextShuffle -= dt;
+      if (c.nextShuffle <= 0) {
+        c.nextShuffle = rand(18,40);
+        if (!['work','vacation','loaf'].includes(c.status) && !c.action && chance(.6)) {
+          const free = SLOTS[c.status].filter(s => !s.occ);
+          if (free.length) { const from = c.slot; freeSlot(c); const s = pick(free); s.occ = c.id;
+            const pts = [...(from ? [...from.approach].reverse() : []), ...(from && from.approach.length ? [] : []), NODES[s.via], ...s.approach, s.pos];
+            c.path = pts.map(p => new THREE.Vector3(p[0],p[1],p[2])); c.slot = s; c.pose = 'walk'; }
+        }
+      }
+      if (!c.bub && chance(dt*.05)) {
+        const pool = (c.pose==='chat'||c.pose==='chatStand') ? CHAT : c.pose==='sleep' ? ['zzZ','쿨쿨…','zZ','음냐음냐'] : SBYKEY[c.status].lines;
+        if (c.pose !== 'hidden') say(c, pick(pool), 2500);
+      }
+    }
+    animateChar(c, t, dt);
+  }
+  // 모니터 / 화장실 문
+  for (const s of SLOTS.work) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); s.desk.scrMat.emissiveIntensity += ((on ? .9 + Math.sin(t*9)*.05 : .12) - s.desk.scrMat.emissiveIntensity) * .1; }
+  for (const s of SLOTS.toilet) if (s.stall) {
+    const inside = s.occ && chars.find(c => c.id === s.occ && !c.path.length);
+    const want = inside ? 0 : -1.3; s.stall.door.rotation.y += (want - s.stall.door.rotation.y) * .12;
+    s.stall.light.material.color.setHex(inside ? 0xff6b8a : 0x6fe0a0); s.stall.light.material.emissive.setHex(inside ? 0xff6b8a : 0x6fe0a0);
+  }
+}
+
+// ================================================================ 고양이 행동
+const CAT_AREAS = [ [2.6,10.4,-2.0,4.8], [-10.6,10.4,3.6,5.0], [14.0,21.0,1.8,4.6] ];
+function catPoint(){ const a = pick([0,0,1,1,2]); const r = CAT_AREAS[a]; return [rand(r[0],r[1]), rand(r[2],r[3]), a]; }
+const cats = CAT_COATS.map(coat => {
+  const m = buildCat(coat); const [x,z,a] = catPoint(); m.root.position.set(x,0,z); m.root.rotation.y = rand(0,6.28); scene.add(m.root);
+  const tag = document.createElement('div'); tag.className = 'tag cat'; tag.textContent = '🐾 ' + coat.name; overlay.appendChild(tag);
+  return { coat, m, area:a, path:[], pose:'stand', wait:rand(1,4), phase:0, seed:Math.random()*10, it:null, tag, bub:null, bubUntil:0, speed:rand(.9,1.3) };
+});
+const hearts = [];
+const TOWER_BASE = () => new THREE.Vector3(TOWER.x-.1, 0, TOWER.z+1.05);
+function leaveTower(cat){ if (cat.spot) { cat.spot.occ = null; cat.spot = null; return true; } return false; }
+function catPathTo(cat, x, z, a){
+  const p = cat.m.root.position; const pts = [];
+  if (leaveTower(cat) || p.y > .05) { const b = TOWER_BASE(); pts.push([b.x,b.z]); p.y = Math.max(p.y, 0); }
+  const inA = (ar) => { const r = CAT_AREAS[ar]; return p.x >= r[0]-.1 && p.x <= r[1]+.1 && p.z >= r[2]-.1 && p.z <= r[3]+.1; };
+  const curA = [0,1,2].find(inA) ?? 1;
+  if (curA !== a) {
+    if (curA === 2 || a === 2) { if (curA !== 2) { if (curA === 1) pts.push([6,4.2]); pts.push([11.2,1],[13.8,1],[15,2.2]); } else { pts.push([13.8,1],[11.2,1],[6.5,2.5]); if (a === 1) pts.push([6,4.2]); } }
+    else if (curA === 1 && a === 0) pts.push([4,4.2]); else if (curA === 0 && a === 1) pts.push([4,4.2]);
+  }
+  pts.push([x,z]);
+  cat.path = pts.map(([x,z]) => new THREE.Vector3(x,0,z)); cat.area = a;
+}
+function climbTower(cat){
+  const free = towerSpots.filter(s => !s.occ); if (!free.length) return false;
+  const s = pick(free); s.occ = cat; cat.spot = s;
+  const p = cat.m.root.position; const pts = [];
+  if (p.y > .05) pts.push(TOWER_BASE());
+  const ar = CAT_AREAS[0]; const inA0 = p.x >= ar[0]-.1 && p.x <= ar[1]+.1 && p.z >= ar[2]-.1 && p.z <= ar[3]+.1;
+  if (!inA0) { catPathTo(cat, TOWER.x-.1, TOWER.z+1.05, 0); cat.spot = s; s.occ = cat; cat.path.push(s.pos.clone()); return true; }
+  pts.push(TOWER_BASE(), s.pos.clone());
+  cat.path = pts; cat.area = 0; return true;
+}
+function stepCats(t, dt){
+  for (const cat of cats) {
+    const m = cat.m, tt = t + cat.seed;
+    let pose = cat.pose;
+    if (cat.it) {
+      const it = cat.it; it.t += dt; pose = 'sit';
+      if (chance(dt*3.5)) spawnHeart(m.root.position.clone().add(new THREE.Vector3(rand(-.25,.25),.8,rand(-.25,.25))), (it.type==='churu' && chance(.35)) || (it.type==='play' && chance(.6)) ? '✨' : '💗');
+      if (it.t > it.dur) { cat.it = null; cat.pose = 'stand'; cat.wait = rand(2,4); catSay(cat, it.type==='churu' ? '더 줘옹…' : it.type==='play' ? '헥헥… 또 놀자옹!' : '골골골♡', 1800); }
+    } else if (cat.path.length) {
+      const p = m.root.position, target = cat.path[0], d = p.distanceTo(target), sp = cat.speed*(cat.zoom?2.6:1)*(Math.abs(target.y-p.y)>.1?1.8:1)*dt;
+      if (d <= sp) { p.copy(target); cat.path.shift(); } else { const dir = target.clone().sub(p).normalize(); p.addScaledVector(dir, sp); const want = Math.atan2(dir.x,dir.z); let dr = want-m.root.rotation.y; while(dr>Math.PI)dr-=Math.PI*2; while(dr<-Math.PI)dr+=Math.PI*2; m.root.rotation.y += dr*Math.min(1,dt*10); }
+      pose = 'walk'; cat.phase += dt*(cat.zoom?24:13);
+      if (target.y > .05 || p.y > .05) { pose = 'walk'; }
+      if (!cat.path.length) { cat.zoom = false;
+        if (cat.playWith) { cat.pose = 'sit'; }
+        else if (cat.spot && p.distanceTo(cat.spot.pos) < .05) { cat.pose = cat.spot.pose; cat.wait = rand(8,18); }
+        else { const r = Math.random(); cat.pose = r<.35?'stand':r<.7?'sit':'sleep'; cat.wait = cat.pose==='sleep'?rand(8,16):rand(2,6); } }
+    } else {
+      cat.wait -= dt;
+      if (cat.playWith) {
+        const { slot, c } = cat.playWith; const p = m.root.position;
+        if (Math.hypot(p.x-slot.catSpot[0], p.z-slot.catSpot[1]) > .3) catPathTo(cat, slot.catSpot[0], slot.catSpot[1], 0);
+        else { cat.pose = 'sit'; const cp = c.m.root.position; m.root.rotation.y = Math.atan2(cp.x-p.x, cp.z-p.z);
+          if (!c.path.length && chance(dt*.9)) spawnHeart(p.clone().add(new THREE.Vector3(rand(-.2,.2),.75,rand(-.2,.2))), slot.pose==='wand' ? '✨' : '💗'); }
+      }
+      else if (cat.wait <= 0 && !cat.spot && chance(.3) && climbTower(cat)) { cat.zoom = false; }
+      else if (cat.wait <= 0) { const [x,z,a] = chance(.7) ? (() => { const r = CAT_AREAS[cat.area]; return [clamp(m.root.position.x+rand(-2.5,2.5),r[0],r[1]), clamp(m.root.position.z+rand(-1.5,1.5),r[2],r[3]), cat.area]; })() : catPoint(); catPathTo(cat,x,z,a); cat.zoom = chance(.15); }
+    }
+    // 포즈
+    const walk = pose==='walk';
+    m.legs.forEach((l,i) => { l.visible = pose !== 'sleep'; l.rotation.x = walk ? Math.sin(cat.phase + (i===0||i===3?0:Math.PI))*.6 : 0; });
+    if (pose === 'sit') { m.g.rotation.x = -.5; m.g.position.set(0,-.06,-.05); m.legs[2].rotation.x = 1.2; m.legs[3].rotation.x = 1.2; m.legs[0].rotation.x = .5; m.legs[1].rotation.x = .5; m.head.rotation.x = .45; }
+    else if (pose === 'sleep') { m.g.rotation.x = 0; m.g.position.set(0,-.17 + Math.sin(tt*2)*.005,0); m.head.rotation.x = .35; }
+    else { m.g.rotation.x = 0; m.g.position.set(0, walk ? Math.abs(Math.sin(cat.phase))*.02 : 0, 0); m.head.rotation.x = 0; }
+    m.tailPiv.rotation.z = Math.sin(tt*(walk?7:2.2))*.5;
+    m.tailPiv.rotation.x = pose==='sleep' ? 1.1 : 0;
+    const sleeping = pose==='sleep', happy = !!cat.it;
+    const playing = cat.playWith && !cat.path.length && !cat.playWith.c.path.length;
+    if (playing && cat.playWith.slot.pose === 'wand') { m.legs[0].rotation.x = -1.1 + Math.sin(tt*9)*.6; m.head.rotation.x = .1 + Math.sin(tt*6)*.15; }
+    const happy2 = happy || (playing && cat.playWith.slot.pose === 'petcat');
+    if (cat.it && cat.it.type === 'play') { const k = cat.it.t; const jump = Math.max(0, Math.sin(k*4.5));
+      m.g.rotation.x = -.75 - jump*.2; m.g.position.set(0, jump*.28, -.06);
+      m.legs[0].rotation.x = -1.7 + Math.sin(k*11)*.55; m.legs[1].rotation.x = -1.7 + Math.cos(k*11)*.55; m.legs[2].rotation.x = 1.0; m.legs[3].rotation.x = 1.0;
+      m.head.rotation.x = .1; m.tailPiv.rotation.z = Math.sin(k*12)*.8; }
+    m.eyes.forEach(e => e.visible = !sleeping && !happy2); m.happy.forEach(e => e.visible = happy2); m.closed.forEach(e => e.visible = sleeping);
+    m.head.rotation.z = cat.it && cat.it.type==='pet' ? Math.sin(cat.it.t*6)*.15 : 0;
+    m.tongue.visible = !!(cat.it && cat.it.type==='churu' && Math.sin(cat.it.t*14) > 0);
+    // 손 / 츄르
+    m.hand.visible = !!(cat.it && cat.it.type==='pet'); m.churu.visible = !!(cat.it && cat.it.type==='churu'); m.toy.visible = !!(cat.it && cat.it.type==='play');
+    if (cat.it) {
+      const S = .8;
+      if (cat.it.type === 'pet') { const k = Math.sin(cat.it.t*5); m.hand.position.set(0, (.82 + Math.abs(k)*.04)*S - .05, (.12 - (k+1)*.16)*S); m.hand.rotation.set(-.15,0,0); }
+      else if (cat.it.type === 'play') { const k = cat.it.t; m.toy.position.set(Math.sin(k*2.6)*.18, .72 + Math.sin(k*4.5+1.2)*.12, .32); m.toy.children[1].rotation.z = Math.sin(k*9)*.4; }
+      else { const sq = clamp(1 - cat.it.t/cat.it.dur*.8, .35, 1); m.churu.userData.pouch.scale.z = sq; m.churu.position.set(0,.5*S,.28*S); m.churu.userData.paste.scale.setScalar(.8 + Math.abs(Math.sin(cat.it.t*7))*.5); }
+    }
+  }
+}
+const smokes = [];
+const smokeGeo = new THREE.SphereGeometry(.07,10,8);
+function spawnSmoke(c){
+  const p = new THREE.Vector3(); c.m.head.getWorldPosition(p);
+  const fwd = new THREE.Vector3(Math.sin(c.m.root.rotation.y),0,Math.cos(c.m.root.rotation.y));
+  p.addScaledVector(fwd, .3*c.look.scale); p.y -= .05;
+  const mesh = new THREE.Mesh(smokeGeo, new THREE.MeshStandardMaterial({ color:0xf2eef8, transparent:true, opacity:.75, roughness:1 }));
+  mesh.position.copy(p); scene.add(mesh); smokes.push({ mesh, life:2.2, v:new THREE.Vector3(rand(-.08,.08)+fwd.x*.15, rand(.25,.4), rand(-.08,.08)+fwd.z*.15) });
+}
+function stepSmoke(dt){ for (let i=smokes.length-1;i>=0;i--){ const s = smokes[i]; s.life -= dt; s.mesh.position.addScaledVector(s.v, dt); s.mesh.scale.multiplyScalar(1 + dt*.9); s.mesh.material.opacity = Math.max(0, s.life/2.2*.75); if (s.life <= 0) { scene.remove(s.mesh); s.mesh.material.dispose(); smokes.splice(i,1); } } }
+function triggerAction(id, type, opts={}){
+  const c = chars.find(c => c.id === id); if (!c || c.status !== 'roof' || !['smoke','shout'].includes(type)) return;
+  if (c.slot && c.slot.seat) { const free = SLOTS.roof.filter(s => !s.occ && !s.seat); if (free.length) { const from = c.slot; from.occ = null; const s = pick(free); s.occ = c.id;
+    c.path = [...from.approach].reverse().concat([NODES[s.via], ...s.approach, s.pos]).map(p => new THREE.Vector3(p[0],p[1],p[2])); c.slot = s; c.pose = 'walk'; } }
+  c.action = { type };
+  if (!opts.remote) { toast(type==='smoke' ? `🚬 ${c.name} 담타 중…` : `📢 ${c.name}: 으아아악!!`); send({ kind:'action', id, type, t:Date.now(), ver:roster.ver }); }
+}
+// ----- 월루: 고양이 부르기
+function summonCat(slot, c){
+  if (!slot.catSpot || slot.cat || c.slot !== slot) return;
+  const [x,z] = slot.catSpot;
+  const free = cats.filter(k => !k.playWith && !k.it);
+  if (!free.length) return;
+  free.sort((a,b) => Math.hypot(a.m.root.position.x-x, a.m.root.position.z-z) - Math.hypot(b.m.root.position.x-x, b.m.root.position.z-z));
+  const k = free[0]; k.playWith = { slot, c }; slot.cat = k; k.zoom = true;
+  catPathTo(k, x, z, 0);
+}
+function releaseCat(slot){ if (slot && slot.cat) { const k = slot.cat; k.playWith = null; k.wait = rand(1,3); slot.cat = null; } }
+function catSay(cat, text, ms){ if (cat.bub) cat.bub.remove(); const b = document.createElement('div'); b.className='bub'; b.textContent=text; overlay.appendChild(b); cat.bub=b; cat.bubUntil=performance.now()+ms; }
+function spawnHeart(pos, emo){ const el = document.createElement('div'); el.className='heart'; el.textContent=emo; overlay.appendChild(el); hearts.push({ pos, el, life:1.4 }); }
+
+// ================================================================ 라벨
+const ZONE_ANCHORS = { work:[-4.1,2.3,.6], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+2.6,-15.4], vacation:[17.4,2.4,-14.4], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
+const zoneEls = {};
+for (const z of STATUSES) {
+  const el = document.createElement('div'); el.className = 'zl';
+  el.innerHTML = `<div class="ic" style="background:${z.ic}">${z.emoji}</div><div><b>${z.label}</b><small></small></div>`;
+  overlay.appendChild(el); zoneEls[z.key] = el;
+}
+const v3 = new THREE.Vector3();
+function toScreen(x,y,z){ v3.set(x,y,z).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [(v3.x*.5+.5)*r.width, (-v3.y*.5+.5)*r.height, v3.z]; }
+function placeEl(el, x,y,z){ const [sx,sy,sz] = toScreen(x,y,z); if (sz > 1) { el.style.display='none'; return; } el.style.display=''; el.style.left = sx+'px'; el.style.top = sy+'px'; }
+function updateOverlay(now, dt){
+  const counts = countByStatus();
+  for (const z of STATUSES) { const [x,y,zz] = ZONE_ANCHORS[z.key]; placeEl(zoneEls[z.key], x,y,zz); zoneEls[z.key].querySelector('small').textContent = `${counts[z.key]||0}명 · ${z.sub}`; }
+  for (const c of chars) {
+    const p = c.m.root.position, h = c.pose==='lie' ? 1.0 : c.pose==='sleep' ? .7 : 1.55*c.look.scale;
+    const vis = c.m.root.visible;
+    c.tag.style.display = vis ? '' : 'none';
+    if (vis) { placeEl(c.tag, p.x, p.y - .05, p.z); c.tag.textContent = (c.id===RIRI_ID?'👑 ':c.id===meId?'⭐ ':'') + c.name; c.tag.classList.toggle('me', c.id===meId); }
+    if (c.bub) { if (now > c.bubUntil) { c.bub.remove(); c.bub = null; } else placeEl(c.bub, p.x, p.y + (vis ? h + .25 : 1.8), p.z); }
+  }
+  for (const cat of cats) {
+    const p = cat.m.root.position; placeEl(cat.tag, p.x, p.y-.05, p.z);
+    if (cat.it) { const txt = cat.it.type==='churu' ? '냠냠냠!' : cat.it.type==='play' ? '냥! 냥! 잡았다!' : '골골골~'; if (!cat.bub || cat.bub.textContent !== txt) catSay(cat, txt, 99999); }
+    else if (cat.bub && now > cat.bubUntil) { cat.bub.remove(); cat.bub = null; }
+    if (cat.bub) placeEl(cat.bub, p.x, p.y + .95, p.z);
+  }
+  for (let i=hearts.length-1;i>=0;i--){ const h = hearts[i]; h.life -= dt; h.pos.y += dt*.6; if (h.life<=0){ h.el.remove(); hearts.splice(i,1); continue; } placeEl(h.el, h.pos.x,h.pos.y,h.pos.z); h.el.style.opacity = Math.min(1,h.life*1.4); }
+}
+function countByStatus(){ const o = {}; for (const c of chars) o[c.status] = (o[c.status]||0)+1; return o; }
+
+// 선택 표시 링
+const selRing = M(new THREE.RingGeometry(.42,.52,32), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:.9, side:THREE.DoubleSide }), false);
+selRing.rotation.x = -Math.PI/2; selRing.visible = false; scene.add(selRing);
+
+// ================================================================ 포트레잇 (오른쪽 목록용)
+const pr = new THREE.WebGLRenderer({ antialias:true, alpha:true, preserveDrawingBuffer:true }); pr.setSize(128,128); pr.outputColorSpace = THREE.SRGBColorSpace;
+const pScene = new THREE.Scene(); pScene.add(new THREE.HemisphereLight(0xffffff,0xf1d3ea,1.7)); const pl = new THREE.DirectionalLight(0xffffff,1.4); pl.position.set(2,3,4); pScene.add(pl);
+const pCam = new THREE.PerspectiveCamera(30,1,.1,20); pCam.position.set(.9,1.25,3.0); pCam.lookAt(0,.82,0);
+const portraits = {};
+function makePortraits(){
+  for (const c of chars) { const m = buildModel(c.look); m.root.rotation.y = .35; m.arms[0].rotation.z = .3; m.arms[1].rotation.z = -.3; pScene.add(m.root); pr.render(pScene,pCam); portraits[c.id] = pr.domElement.toDataURL(); pScene.remove(m.root); }
+}
+
+// ================================================================ 패널
+const $ = id => document.getElementById(id);
+const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+let listSig = '';
+function renderPanel(full){
+  const counts = countByStatus();
+  const sig = chars.map(c => c.id).join('|');
+  if (full || listSig !== sig) {
+    $('meSel').innerHTML = '<option value="">— 나는 누구? 선택하세요 —</option>' + chars.map(c => { const taken = dbMode && charOwner[c.id] && charOwner[c.id] !== myUid;
+      return `<option value="${esc(c.id)}" ${taken?'disabled':''}>${esc(c.name)}${taken ? (c.id===RIRI_ID?' (주인 전용)':' (사용 중)') : ''}</option>`; }).join('');
+    $('meSel').disabled = dbMode && (!canWrite || meId === RIRI_ID);
+    $('list').innerHTML = chars.map(c => `<div class="row" data-id="${esc(c.id)}"><img src="${portraits[c.id]||''}" alt=""><div class="nm"></div><span class="chip"></span></div>`).join('');
+    $('list').querySelectorAll('.row').forEach(row => row.onclick = () => { selectedId = row.dataset.id; renderPanel(); });
+    listSig = sig;
+  }
+  $('meSel').value = meId || '';
+  $('list').querySelectorAll('.row').forEach(row => {
+    const c = chars.find(x => x.id === row.dataset.id); const z = SBYKEY[c.status];
+    row.classList.toggle('sel', c.id === selectedId);
+    row.querySelector('.nm').innerHTML = `${esc(c.name)}${c.id===meId?'<span class="me">나</span>':(dbMode && charOwner[c.id] ? ' <span title="다른 분이 사용 중">🔒</span>' : '')}`;
+    const chip = row.querySelector('.chip'); chip.textContent = `${z.emoji} ${z.label}`; chip.style.background = z.ic;
+  });
+  $('counts').innerHTML = STATUSES.map(z => `<span class="chip" style="background:${z.ic}">${z.emoji} ${z.label} ${counts[z.key]||0}</span>`).join('');
+  const sel = chars.find(c => c.id === selectedId) || chars.find(c => c.id === meId);
+  if (sel && !selectedId) selectedId = sel.id;
+  const grid = $('statusGrid');
+  const ctl = canControl(sel);
+  $('renameBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
+  $('roofActs').hidden = !sel || sel.status !== 'roof' || !ctl;
+  $('lockNote').hidden = !sel || ctl;
+  $('lockNote').textContent = !canWrite ? '🔒 보기 전용이라 상태를 바꿀 수 없어요' : '🔒 다른 분의 캐릭터라 상태를 바꿀 수 없어요';
+  $('regenBtn').hidden = dbMode && !isAdmin;
+  $('simBtn').hidden = dbMode;
+  if (!sel || renameFor !== sel.id) { $('renameBox').hidden = true; renameFor = null; }
+  if (!sel) { $('selName').textContent = '캐릭터를 골라주세요'; $('selStatus').textContent = '사무실에서 캐릭터를 누르거나 목록에서 선택'; grid.innerHTML=''; $('selPh').outerHTML = '<div class="ph" id="selPh"></div>'; return; }
+  $('selName').textContent = sel.name + (sel.id===meId ? ' (나)' : '');
+  $('selStatus').textContent = `지금: ${SBYKEY[sel.status].emoji} ${SBYKEY[sel.status].label}`;
+  $('selPh').outerHTML = `<img id="selPh" src="${portraits[sel.id]||''}" alt="">`;
+  if (grid.dataset.for !== sel.id + sel.status + ctl) {
+    grid.innerHTML = STATUSES.map((z,i) => `<button class="sbtn ${z.key===sel.status?'cur':''} ${i===STATUSES.length-1 && STATUSES.length%2?'wide':''}" data-k="${z.key}" style="background:${z.ic}">${z.emoji} ${z.label}</button>`).join('');
+    grid.querySelectorAll('button').forEach(b => { b.disabled = !ctl; b.style.opacity = ctl ? 1 : .45; b.onclick = () => { if (canControl(sel)) setStatus(sel.id, b.dataset.k); }; });
+    grid.dataset.for = sel.id + sel.status + ctl;
+  }
+}
+let renameFor = null;
+$('renameBtn').onclick = () => { const sel = chars.find(c => c.id === selectedId); if (!sel) return; renameFor = sel.id; $('renameBox').hidden = false; $('nameIn').value = sel.name; $('nameIn').focus(); $('nameIn').select(); };
+document.querySelectorAll('#roofActs [data-a]').forEach(b => b.onclick = () => { if (selectedId && canControl(chars.find(c => c.id === selectedId))) triggerAction(selectedId, b.dataset.a); });
+$('renameCancel').onclick = () => { renameFor = null; $('renameBox').hidden = true; };
+$('renameBox').onsubmit = e => { e.preventDefault(); const name = $('nameIn').value.trim().replace(/\s+/g,' ').slice(0,12); if (name && renameFor) setName(renameFor, name); renameFor = null; $('renameBox').hidden = true; };
+function setName(id, name, opts={}){
+  const c = chars.find(c => c.id === id); if (!c || typeof name !== 'string' || id === RIRI_ID) return;
+  name = name.trim().slice(0,12); if (!name) return;
+  const t = opts.t || Date.now();
+  if (opts.remote && t <= (c.nt||0)) return;
+  const old = c.name; c.name = name; c.nt = t;
+  saveLocal(); renderPanel(true);
+  if (old !== name) toast(`✏️ ${old} → ${name}`);
+  if (!opts.remote) { if (dbMode) dbWrite(id, { name, nt:t }); else send({ kind:'rename', id, name, t, ver:roster.ver }); }
+}
+$('meSel').onchange = e => {
+  const want = e.target.value || null;
+  if (dbMode) {
+    if (!canWrite) { renderPanel(true); return; }
+    const c = chars.find(x => x.id === want);
+    if (want && charOwner[want] && charOwner[want] !== myUid) { toast('이미 다른 분이 쓰고 있는 캐릭터예요'); renderPanel(true); return; }
+    if (meId && meId !== want && meId !== RIRI_ID) { charOwner[meId] = ''; dbWrite(meId, { owner:'' }); }
+    if (want) { charOwner[want] = myUid; dbWrite(want, { owner:myUid }); }
+    meId = want; if (meId) selectedId = meId; renderPanel(true); return;
+  }
+  meId = want; try { localStorage.setItem(LS_ME, meId||''); } catch(_){} if (meId) selectedId = meId; renderPanel(); };
+let simOn = false, simTimer = 4;
+$('simBtn').onclick = e => { simOn = !simOn; e.currentTarget.classList.toggle('on', simOn); e.currentTarget.textContent = simOn ? '🤖 시뮬레이션 켜짐' : '🤖 자동 시뮬레이션'; };
+let regenArmed = 0;
+$('regenBtn').onclick = e => {
+  const b = e.currentTarget;
+  if (Date.now() - regenArmed > 2500) { regenArmed = Date.now(); b.classList.add('warn'); b.textContent = '한 번 더 누르면 새로 뽑아요'; setTimeout(() => { b.classList.remove('warn'); b.textContent = '🎲 새로 뽑기'; }, 2500); return; }
+  regenArmed = 0; b.classList.remove('warn'); b.textContent = '🎲 새로 뽑기';
+  if (dbMode) { if (isAdmin) reseedDb(); return; }
+  const list = ensureRiri([...serialList().filter(d => d.id === RIRI_ID), ...makeRoster(10)]); roster = { ver:Date.now(), fresh:false, list }; buildChars(list); saveLocal(); send(snapshot()); toast('🎲 캐릭터 10명을 새로 뽑았어요!');
+};
+
+// 클릭 / 호버
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+function hit(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects([...cats.map(c => c.m.root), charGroup], true);
+  for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
+  return null;
+}
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5) return;
+  const h = hit(e);
+  if (h && h.cat) { openCatMenu(h.cat, e.clientX, e.clientY); return; }
+  closeCatMenu();
+  if (h && h.char) { selectedId = h.char; renderPanel(); }
+});
+renderer.domElement.addEventListener('pointermove', e => { if (e.buttons) return; const h = hit(e); renderer.domElement.style.cursor = h ? (h.cat ? 'grab' : 'pointer') : 'default'; });
+let menuCat = null;
+function openCatMenu(cat, cx, cy){ menuCat = cat; const m = $('catMenu'), r = stage.getBoundingClientRect(); m.querySelector('.cn').textContent = '🐾 ' + cat.coat.name; m.style.left = clamp(cx-r.left-80, 8, r.width-170)+'px'; m.style.top = clamp(cy-r.top-120, 8, r.height-120)+'px'; m.hidden = false; }
+function closeCatMenu(){ $('catMenu').hidden = true; menuCat = null; }
+document.querySelectorAll('#catMenu [data-act]').forEach(b => b.onclick = () => {
+  if (!menuCat) return; const cat = menuCat, type = b.dataset.act;
+  cat.path = []; cat.it = { type, t:0, dur: type==='churu' ? 4.2 : type==='play' ? 5 : 3.6 };
+  toast(type==='churu' ? `🍡 ${cat.coat.name}에게 츄르를 줬어요` : type==='play' ? `🪶 ${cat.coat.name}랑 낚싯대 놀이 중!` : `🖐️ ${cat.coat.name}를 쓰다듬는 중…`); closeCatMenu();
+});
+document.querySelector('#catMenu .x').onclick = closeCatMenu;
+function toast(text){ const el = document.createElement('div'); el.className='toast'; el.textContent=text; const box=$('toasts'); box.appendChild(el); while (box.children.length>3) box.firstChild.remove(); setTimeout(() => el.remove(), 2600); }
+
+// ================================================================ 루프
+function resize(){ const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); renderer.domElement.style.width = r.width+'px'; renderer.domElement.style.height = r.height+'px'; camera.aspect = r.width/r.height;
+  camera.fov = r.width/r.height < 1.1 ? 48 : 32; camera.updateProjectionMatrix(); }
+window.addEventListener('resize', resize);
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now; const t = now/1000;
+  stepChars(t, dt); stepCats(t, dt); stepSmoke(dt);
+  if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
+  const sel = chars.find(c => c.id === selectedId);
+  if (sel && sel.m.root.visible) { selRing.visible = true; selRing.position.set(sel.m.root.position.x, sel.m.root.position.y + .03 + (sel.slot && sel.slot.seat && !sel.path.length ? 0 : 0), sel.m.root.position.z); selRing.rotation.z = t; } else selRing.visible = false;
+  controls.update();
+  renderer.render(scene, camera);
+  updateOverlay(now, dt);
+  requestAnimationFrame(frame);
+}
+
+// 시작
+function docToChar(d){
+  const v = d.data && d.data(); if (!v || typeof v !== 'object') return null;
+  if (typeof v.name !== 'string' || !SBYKEY[v.status] || !v.look || typeof v.look !== 'object') return null;
+  return { id:d.id, name:String(v.name).slice(0,12), nt:+v.nt||0, look: d.id === RIRI_ID ? RIRI_LOOK : sanitizeLook(v.look), status:v.status, st:+v.st||0, owner: typeof v.owner === 'string' ? v.owner : '', order:+v.order||0 };
+}
+function sanitizeLook(L){ // 다른 사람이 쓴 데이터: 모르는 값은 기본값으로
+  const def = makeLook(); const out = {};
+  const okArr = a => Array.isArray(a) && a.length === 3 && a.every(n => typeof n === 'number' && isFinite(n));
+  for (const k in def) { const v = L[k], d = def[k];
+    if (Array.isArray(d)) out[k] = okArr(v) ? v : d;
+    else if (typeof d === 'number') out[k] = typeof v === 'number' && isFinite(v) ? clamp(v, .2, 1.3) : d;
+    else if (typeof d === 'boolean') out[k] = !!v;
+    else out[k] = typeof v === 'string' && v.length < 20 ? v : d; }
+  return out;
+}
+async function seedDb(){
+  const list = makeRoster(10);
+  const docs = [{ id:RIRI_ID, name:'리리', nt:0, look:{ princess:true }, status:'work', st:Date.now(), owner:myUid||'', order:0 },
+    ...list.map((d,i) => ({ ...d, owner:'', order:i+1 }))];
+  for (const d of docs) { const { id, ...body } = d; try { await DB.doc('chars/' + id).set(body); } catch(e){} }
+}
+async function reseedDb(){
+  toast('🎲 캐릭터 10명을 새로 뽑는 중…');
+  for (const c of chars) if (c.id !== RIRI_ID) { try { await DB.doc('chars/' + c.id).delete(); } catch(e){} }
+  const list = makeRoster(10);
+  for (let i=0;i<list.length;i++){ const { id, ...body } = list[i]; try { await DB.doc('chars/' + id).set({ ...body, owner:'', order:i+1 }); } catch(e){} }
+}
+function applyDbSnapshot(snap){
+  const list = snap.docs.map(docToChar).filter(Boolean).sort((a,b) => a.order - b.order || (a.id < b.id ? -1 : 1));
+  for (const d of list) charOwner[d.id] = d.owner;
+  const mine = list.find(d => d.owner && d.owner === myUid);
+  if (!list.length) return false;
+  const sig = list.map(d => d.id).join('|'), cur = chars.map(c => c.id).join('|');
+  if (!dbMode || sig !== cur) {
+    dbMode = true; roster = { ver:1, fresh:false, list };
+    buildChars(list.map(d => ({ id:d.id, name:d.name, nt:d.nt, look:d.look, status:d.status, st:d.st })));
+  } else {
+    for (const d of list) { const c = chars.find(x => x.id === d.id); if (!c) continue;
+      if (d.st > c.st) setStatus(d.id, d.status, { remote:true, t:d.st });
+      if (d.nt > (c.nt||0)) setName(d.id, d.name, { remote:true, t:d.nt }); }
+  }
+  meId = mine ? mine.id : null;
+  if (meId && !selectedId) selectedId = meId;
+  renderPanel(true);
+  return true;
+}
+async function initDb(){
+  if (!window.claude || typeof window.claude.use !== 'function') return false;
+  try {
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    if (!db) return false;
+    DB = db; USER = user;
+    if (user) {
+      myUid = await user.id().catch(() => null);
+      isOwner = !!(user.isOwner && await user.isOwner());
+      isAdmin = isOwner || !!(user.canEdit && await user.canEdit());
+      const cw = user.can ? await user.can('data.write') : null; canWrite = cw === null ? true : !!cw;
+    }
+  } catch(e){ return false; }
+  return new Promise(resolve => {
+    let done = false, seeded = false;
+    const timer = setTimeout(() => { if (!done) { done = true; resolve(false); } }, 10000);
+    DB.collection('chars').onSnapshot(snap => {
+      if (snap.metadata && snap.metadata.fromCache && snap.empty) return;
+      if (snap.empty) {
+        if (isOwner && !seeded) { seeded = true; seedDb(); }
+        else if (!done && !isOwner) { done = true; clearTimeout(timer); resolve(false); }
+        return;
+      }
+      applyDbSnapshot(snap);
+      // 주인이 들어오면 리리는 항상 주인 것
+      if (isOwner && myUid && charOwner[RIRI_ID] !== myUid && !seeded) { seeded = true; charOwner[RIRI_ID] = myUid; dbWrite(RIRI_ID, { owner:myUid }); }
+      if (!done) { done = true; clearTimeout(timer); resolve(true); }
+    }, err => { if (!done) { done = true; clearTimeout(timer); resolve(false); } else toast('⚠️ 서버 연결이 끊겼어요. 새로고침해 주세요'); });
+  });
+}
+
+const saved = loadLocal();
+if (saved && saved.list.every(d => SBYKEY[d.status])) roster = { ver:saved.ver, fresh:false, list:ensureRiri(saved.list) };
+else { const list = ensureRiri(makeRoster(10)); roster = { ver:Date.now(), fresh:true, list }; }
+try { meId = localStorage.getItem(LS_ME) || RIRI_ID; } catch(e){ meId = RIRI_ID; }
+resize();
+const hasClaude = !!(window.claude && typeof window.claude.use === 'function');
+if (!hasClaude) { buildChars(roster.list); if (meId && chars.find(c => c.id === meId)) selectedId = meId; renderPanel(); }
+initSync();
+document.getElementById('loading').textContent = '사무실 불러오는 중…';
+(async () => {
+  const ok = hasClaude ? await initDb() : false;
+  if (!ok) {
+    dbMode = false;
+    if (!chars.length) { buildChars(roster.list); if (meId && chars.find(c => c.id === meId)) selectedId = meId; renderPanel(true); }
+    if (hasClaude) toast('혼자 보기 모드로 열었어요 (서버에 연결되지 않음)');
+  } else { const dot = $('connDot'), txt = $('connText'); dot.classList.add('on'); txt.textContent = canWrite ? '모두와 실시간 공유 중' : '보기 전용으로 공유 중'; }
+  const ld = document.getElementById('loading'); if (ld) ld.remove();
+})();
+window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepChars(tt,.05); stepCats(tt,.05); } } };
+requestAnimationFrame(t => { last = t; frame(t); });
+</script>
+</body>
+</html>
