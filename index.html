@@ -1247,8 +1247,11 @@ function animateChar(c, t, dt){
 
 // 퇴근버스 타고 10분 지나면 집에 간 걸로 (17:30 이후 퇴근중으로 바꾼 사람, 15시간 동안)
 const HOME_AFTER = 10*60e3, HOME_FOR = 15*3600e3;
-function isHome(c, now){ if (c.status !== 'commute' || !c.st) return false; const age = now - c.st; if (age < HOME_AFTER || age >= HOME_FOR) return false;
-  const d = new Date(c.st + 9*3600e3), mins = d.getUTCHours()*60 + d.getUTCMinutes(); return mins >= 17*60+30; }
+function isHome(c, now){ // 17:30 이후 퇴근중 상태로 10분 지나면 집에 감 (17:30 전에 미리 바꾼 사람은 17:30부터 셈)
+  if (c.status !== 'commute' || !c.st) return false;
+  const K = 9*3600e3, D = 864e5; let pm = Math.floor((now + K)/D)*D + (17*60+30)*60e3 - K; if (now - (pm - (17*60+30)*60e3) < 6*3600e3) pm -= D; // 새벽엔 전날 17:30
+  if (now < pm || c.st < pm - 11.5*3600e3) return false; // 낮 출근 버스 / 아침 6시 이전 기록은 제외
+  return now - Math.max(c.st, pm) >= HOME_AFTER; }
 function stepChars(t, dt){
   const nowMs = Date.now();
   for (const c of chars) {
