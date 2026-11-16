@@ -1349,7 +1349,7 @@ function speak(id, text, opts={}){
   const c = chars.find(c => c.id === id); if (!c) return;
   text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!text) return;
   if (opts.remote && dbMode && opts.uid && charOwner[id] && charOwner[id] !== opts.uid) return; // 남의 캐릭터로 말하기 막기
-  say(c, text, 7000, 'said');
+  say(c, text, 30000, 'said');
   if (!opts.remote) send({ kind:'action', id, type:'say', text, t:Date.now(), ver:roster.ver });
 }
 function triggerAction(id, type, opts={}){
