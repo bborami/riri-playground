@@ -25,6 +25,7 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;color:var(--ink);font-family:'Noto Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     background:linear-gradient(165deg,#e6dcfa 0%,#f4e1f4 45%,#fde4ec 75%,#fde9e3 100%);}
+  #nightSky{position:absolute;inset:0;background:radial-gradient(1px 1px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 37% 9%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 63% 22%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 82% 12%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 92% 34%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 6% 46%,#fff 50%,transparent 51%),linear-gradient(170deg,#1c1a3c 0%,#2a2450 55%,#433062 100%);opacity:0;pointer-events:none}
   #app{display:flex;height:100vh;width:100vw;overflow:hidden}
   #stage{position:relative;flex:1;min-width:0}
   #stage canvas{position:absolute;inset:0;display:block}
@@ -217,7 +218,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-stage.prepend(renderer.domElement);
+stage.prepend(renderer.domElement); { const sky = document.createElement('div'); sky.id = 'nightSky'; stage.prepend(sky); }
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
 camera.position.set(-6, 44, 52);
@@ -227,7 +228,7 @@ controls.enableDamping = true; controls.dampingFactor = .08;
 controls.minDistance = 14; controls.maxDistance = 75; controls.maxPolarAngle = 1.25; controls.minPolarAngle = .35;
 controls.update();
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xf1d3ea, 1.55));
+const hemi = new THREE.HemisphereLight(0xffffff, 0xf1d3ea, 1.55); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff6f0, 1.75);
 sun.position.set(12, 26, 16);
 sun.castShadow = true;
@@ -692,6 +693,19 @@ for (const z of [2.55,3.2,3.85]) SLOTS.commute.push({ pos:[-16.1,0,z], ry:Math.P
 for (const [x,z] of [[-15.35,1.9],[-15.25,4.5],[-15.6,5.2],[-15.6,1.2]]) SLOTS.commute.push({ pos:[x,0,z], ry:Math.PI/2, pose:'wait', via:'BS1', approach:[] });
 for (let i=0;i<14;i++){ const a = i/14*Math.PI*2; SLOTS.stroll.push({ pos:loopPt(a), a, dir: i%2 ? 1 : -1, ry:0, pose:'walk', via:'K0', approach:[], loop:true }); }
 const faceTo = (x,z,tx,tz) => Math.atan2(tx-x, tz-z);
+// 야간 책상 불빛 (앉아 있는 자리만)
+const glowTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); const gr = g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,230,160,1)'); gr.addColorStop(.5,'rgba(255,210,120,.45)'); gr.addColorStop(1,'rgba(255,200,110,0)'); g.fillStyle = gr; g.fillRect(0,0,64,64); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const coneGeo = new THREE.CylinderGeometry(.12, .95, 2.1, 16, 1, true), poolGeo = new THREE.PlaneGeometry(2.6, 2.6);
+for (const d of desks) {
+  const side = d.ry > 0 ? -1 : 1, x = d.seat[0] - side*.55, z = d.seat[1];
+  const pm = new THREE.MeshBasicMaterial({ map:glowTex, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending });
+  const pool = new THREE.Mesh(poolGeo, pm); pool.rotation.x = -Math.PI/2; pool.position.set(x, .66, z); pool.visible = false; world.add(pool);
+  const cm = new THREE.MeshBasicMaterial({ color:0xffe2a0, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
+  const cone = new THREE.Mesh(coneGeo, cm); cone.position.set(x, 1.7, z); cone.visible = false; world.add(cone);
+  const lamp = new THREE.Group(); put(lamp, cyl(.09,.11,.03,0x6a6280,10), 0,.64,0); put(lamp, cyl(.015,.015,.5,0x6a6280,6), 0,.89,0);
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(.06,.14,.12,12), new THREE.MeshStandardMaterial({ color:0xfff0c8, roughness:.6 })); shade.castShadow = true; put(lamp, shade, 0,1.16,0); put(world, lamp, x + side*.25, 0, z + .5);
+  d.glow = { pool, cone, shade, v:0 };
+}
 desks.forEach((d,i) => SLOTS.work.push({ i, pos:[d.seat[0],0,d.seat[1]], ry:d.ry, pose:'type', seat:.46, via:d.via, approach:[[d.aisleX,0,d.seat[1]]], desk:d }));
 stalls.forEach(s => SLOTS.toilet.push({ pos:[s.x,0,-6.65], ry:0, pose:'hidden', via:'T0', approach:[[s.x,0,-5.4]], stall:s }));
 for (const sx of [-6.55,-5.75]) SLOTS.toilet.push({ pos:[sx,0,-6.45], ry:Math.PI, pose:'wash', via:'T0', approach:[[sx,0,-5.2]] });
@@ -1250,7 +1264,9 @@ function stepChars(t, dt){
     animateChar(c, t, dt);
   }
   // 모니터 / 화장실 문
-  for (const s of SLOTS.work) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); s.desk.scrMat.emissiveIntensity += ((on ? .9 + Math.sin(t*9)*.05 : .12) - s.desk.scrMat.emissiveIntensity) * .1; }
+  for (const s of SLOTS.work) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); s.desk.scrMat.emissiveIntensity += ((on ? .9 + Math.sin(t*9)*.05 : .12*(1-NIGHT.v)) - s.desk.scrMat.emissiveIntensity) * .1;
+    const G = s.desk.glow, tg = on ? NIGHT.v : 0; if (Math.abs(G.v - tg) > .002 || G.v) { G.v += (tg - G.v) * .08; if (G.v < .003 && !tg) G.v = 0;
+      G.pool.visible = G.cone.visible = G.v > 0; G.pool.material.opacity = G.v*.9; G.cone.material.opacity = G.v*.11; G.shade.material.emissive && G.shade.material.emissive.setHex(G.v > .3 ? 0xffd27a : 0x000000); } }
   for (const s of SLOTS.toilet) if (s.stall) {
     const inside = s.occ && chars.find(c => c.id === s.occ && !c.path.length);
     const want = inside ? 0 : -1.3; s.stall.door.rotation.y += (want - s.stall.door.rotation.y) * .12;
@@ -1395,6 +1411,7 @@ for (const z of STATUSES) {
   overlay.appendChild(el); zoneEls[z.key] = el;
 }
 // 출퇴근 시계 (한국 시간 9시 출근 · 18시 퇴근)
+const NIGHT = { v:0, target:0, applied:-1 };
 const COMMUTE_AM = { label:'출근중', sub:'버스 타고 출근하는 중', lines:SBYKEY.commute.lines.slice() };
 const COMMUTE_PM = { label:'퇴근중', sub:'버스 타고 퇴근하는 중', lines:['드디어 퇴근!','오늘도 버텼다','집에 가고 싶다…가는 중이지','저녁 뭐 먹지','내일 또 출근이라니','기사님 집으로 가주세요!'] };
 function kstNow(){ const d = new Date(Date.now() + 9*3600e3); return { h:d.getUTCHours(), m:d.getUTCMinutes(), s:d.getUTCSeconds(), wd:d.getUTCDay() }; }
@@ -1403,6 +1420,7 @@ let commuteMode = '';
 function tickClock(){
   const k = kstNow(), sec = k.h*3600 + k.m*60 + k.s, START = 9*3600, END = 18*3600, weekend = k.wd === 0 || k.wd === 6;
   const mode = sec >= END - 30*60 ? 'pm' : 'am'; // 퇴근버스는 17:30부터
+  NIGHT.target = (sec >= END || sec < 6*3600) ? 1 : 0; // 18시~새벽 6시 야간
   if (mode !== commuteMode) { commuteMode = mode; Object.assign(SBYKEY.commute, mode === 'pm' ? COMMUTE_PM : COMMUTE_AM);
     const b = zoneEls.commute && zoneEls.commute.querySelector('b'); if (b) b.textContent = SBYKEY.commute.label;
     if (typeof renderPanel === 'function' && chars.length) renderPanel(true); }
@@ -1675,6 +1693,14 @@ function setLite(on, why){
   if (why) toast(why);
 }
 if (liteChosen === '1') setLite(true);
+const DAYC = { hs:new THREE.Color(0xffffff), hg:new THREE.Color(0xf1d3ea), sc:new THREE.Color(0xfff6f0) }, NITC = { hs:new THREE.Color(0x7f86d8), hg:new THREE.Color(0x2c2346), sc:new THREE.Color(0xa9b8ff) };
+function applyNight(dt){
+  NIGHT.v += (NIGHT.target - NIGHT.v) * Math.min(1, dt*1.2); if (Math.abs(NIGHT.v - NIGHT.target) < .002) NIGHT.v = NIGHT.target;
+  if (Math.abs(NIGHT.v - NIGHT.applied) < .002) return; NIGHT.applied = NIGHT.v; const n = NIGHT.v;
+  hemi.intensity = 1.55 - n*.95; hemi.color.lerpColors(DAYC.hs, NITC.hs, n); hemi.groundColor.lerpColors(DAYC.hg, NITC.hg, n);
+  sun.intensity = 1.75 - n*1.25; sun.color.lerpColors(DAYC.sc, NITC.sc, n);
+  document.getElementById('nightSky').style.opacity = n.toFixed(3);
+}
 function frame(now){
   if (lite && now - lastDraw < 31) { requestAnimationFrame(frame); return; }
   lastDraw = now;
@@ -1684,7 +1710,7 @@ function frame(now){
     if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/38) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
   }
   const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
-  stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepSmoke(dt);
+  applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepSmoke(dt);
   for (const s of SLOTS.shred) if (s.shredder) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); const pp = s.shredder.paper; pp.visible = !!on; if (on) { pp.position.y = 1.15 - ((t*.5 + s.shredder.x) % 1)*.35; } s.shredder.led.material.color.setHex(on ? 0xff7a7a : 0x6fe0a0); s.shredder.led.material.emissive.setHex(on ? 0xff7a7a : 0x6fe0a0); }
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
   const sel = chars.find(c => c.id === selectedId);
