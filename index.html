@@ -217,15 +217,18 @@ sun.target.position.set(4, 0, -5); scene.add(sun.target);
 sun.shadow.bias = -0.0006; sun.shadow.radius = 5;
 scene.add(sun);
 
-const matCache = new Map();
+// 재질·도형 캐시. 오른쪽 목록 사진(포트레잇)은 다른 WebGL 화면에서 그리니까 캐시를 따로 써요 (같이 쓰면 캐릭터가 사라질 수 있음)
+const matCache = new Map(), pMatCache = new Map();
+let MC = matCache;
 function mat(color, extra) {
   const key = color + (extra ? JSON.stringify(extra) : '');
-  if (!matCache.has(key)) matCache.set(key, new THREE.MeshStandardMaterial(Object.assign({ color, roughness:.82, metalness:0 }, extra||{})));
-  return matCache.get(key);
+  if (!MC.has(key)) MC.set(key, new THREE.MeshStandardMaterial(Object.assign({ color, roughness:.82, metalness:0 }, extra||{})));
+  return MC.get(key);
 }
 const hex = (h,s,l) => new THREE.Color().setHSL(((h%360)+360)%360/360, s/100, l/100, THREE.SRGBColorSpace).getHex();
-const geoCache = new Map();
-function cg(key, make){ if (!geoCache.has(key)) geoCache.set(key, make()); return geoCache.get(key); }
+const geoCache = new Map(), pGeoCache = new Map();
+let GC = geoCache;
+function cg(key, make){ if (!GC.has(key)) GC.set(key, make()); return GC.get(key); }
 function M(geo, color, shadow=true){ const m = new THREE.Mesh(geo, typeof color === 'number' ? mat(color) : color); m.castShadow = shadow; m.receiveShadow = true; return m; }
 function box(w,h,d,color,r=.05){ r = Math.min(r, w/2-.001, h/2-.001, d/2-.001); return M(cg(`b${w},${h},${d},${r}`, () => r>0.005 ? new RoundedBoxGeometry(w,h,d,3,r) : new THREE.BoxGeometry(w,h,d)), color); }
 function cyl(rt,rb,h,color,seg=24){ return M(cg(`c${rt},${rb},${h},${seg}`, () => new THREE.CylinderGeometry(rt,rb,h,seg)), color); }
@@ -1154,8 +1157,9 @@ function animateChar(c, t, dt){
       }
     }
   }
-  const cur = c.cur;
-  if (cur.y === undefined) Object.assign(cur, T);
+  let cur = c.cur;
+  if (cur.y === undefined || !isFinite(cur.y) || !isFinite(cur.armLx) || !isFinite(cur.headY)) { cur = c.cur = {}; Object.assign(cur, T); }
+  if (!m.root.parent) charGroup.add(m.root); // 혹시 장면에서 빠졌으면 다시 넣기
   for (const key of ['y','tilt','sway','legL','legR','armLx','armRx','armLz','armRz','headY','headX']) lerpTo(cur, key, T[key], key==='y' && c.pose==='walk' ? 1 : k);
   m.body.position.y = cur.y;
   m.hips.rotation.x = cur.tilt; m.hips.rotation.z = cur.sway;
@@ -1379,8 +1383,16 @@ const pr = new THREE.WebGLRenderer({ antialias:true, alpha:true, preserveDrawing
 const pScene = new THREE.Scene(); pScene.add(new THREE.HemisphereLight(0xffffff,0xf1d3ea,1.7)); const pl = new THREE.DirectionalLight(0xffffff,1.4); pl.position.set(2,3,4); pScene.add(pl);
 const pCam = new THREE.PerspectiveCamera(30,1,.1,20); pCam.position.set(.9,1.25,3.0); pCam.lookAt(0,.82,0);
 const portraits = {};
+const portraitKey = {};
 function makePortraits(){
-  for (const c of chars) { const m = buildModel(c.look); m.root.rotation.y = .35; m.arms[0].rotation.z = .3; m.arms[1].rotation.z = -.3; pScene.add(m.root); pr.render(pScene,pCam); portraits[c.id] = pr.domElement.toDataURL(); pScene.remove(m.root); }
+  MC = pMatCache; GC = pGeoCache;
+  const keepM = new Set(pMatCache.values()), keepG = new Set(pGeoCache.values());
+  try {
+  for (const c of chars) { const key = JSON.stringify(c.look); if (portraitKey[c.id] === key && portraits[c.id]) continue; portraitKey[c.id] = key;
+    const m = buildModel(c.look); m.root.rotation.y = .35; m.arms[0].rotation.z = .3; m.arms[1].rotation.z = -.3; pScene.add(m.root); pr.render(pScene,pCam); portraits[c.id] = pr.domElement.toDataURL(); pScene.remove(m.root);
+    for (const v of pMatCache.values()) keepM.add(v); for (const v of pGeoCache.values()) keepG.add(v);
+    m.root.traverse(o => { if (o.isMesh) { if (!keepG.has(o.geometry)) o.geometry.dispose(); if (!keepM.has(o.material)) o.material.dispose(); } }); }
+  } finally { MC = matCache; GC = geoCache; }
 }
 
 // ================================================================ 패널
