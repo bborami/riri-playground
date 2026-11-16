@@ -584,6 +584,60 @@ put(world, cyl(.18,.14,.08,0xffb3c7,16), 6.3,.04,3.9); put(world, sph(.1,0xf2c48
 put(world, cyl(.16,.12,.08,0xa9d8ff,16), 6.75,.04,4.0);
 put(world, sph(.09,0xffe08a,10), 5.4,.09,2.6); put(world, sph(.08,0xffb3c7,10), 7.8,.08,0.2);
 
+// --- 햄찍이 (햄스터) + 쳇바퀴 상자
+const HAM = { x:6.3, z:1.7, w:1.4, d:.95, h:1.0 };
+const ham = (() => {
+  const cage = new THREE.Group();
+  put(cage, box(HAM.w,.08,HAM.d,0xf7e3c6,.03), 0,.04,0);                       // 바닥
+  put(cage, box(HAM.w-.08,.05,HAM.d-.08,0xfff3d9,.02), 0,.1,0);               // 톱밥
+  for (let i=0;i<14;i++) put(cage, box(.05,.02,.03,0xf0d9a8,.005), rand(-.55,.55),.13,rand(-.36,.36)).rotation.y = rand(0,3);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(HAM.w,HAM.h,HAM.d), new THREE.MeshStandardMaterial({ color:0xdff3ff, transparent:true, opacity:.22, roughness:.1, depthWrite:false }));
+  glass.position.y = HAM.h/2 + .04; cage.add(glass);
+  for (const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) put(cage, box(.06,HAM.h,.06,0xc9b6ff,.02), x*(HAM.w/2-.02), HAM.h/2+.04, z*(HAM.d/2-.02));
+  for (const y of [.06, HAM.h+.06]) { put(cage, box(HAM.w,.04,.05,0xc9b6ff,.01), 0,y,HAM.d/2-.02); put(cage, box(HAM.w,.04,.05,0xc9b6ff,.01), 0,y,-HAM.d/2+.02); put(cage, box(.05,.04,HAM.d,0xc9b6ff,.01), HAM.w/2-.02,y,0); put(cage, box(.05,.04,HAM.d,0xc9b6ff,.01), -HAM.w/2+.02,y,0); }
+  // 쳇바퀴
+  const wheel = new THREE.Group(); const WR = .4;
+  put(wheel, tor(WR,.025,0xff9fbf), 0,0,-.1); put(wheel, tor(WR,.025,0xff9fbf), 0,0,.1);
+  for (let i=0;i<18;i++){ const a = i/18*Math.PI*2; const rung = cyl(.012,.012,.2,0xffd6e4,6); rung.rotation.x = Math.PI/2; put(wheel, rung, Math.cos(a)*WR, Math.sin(a)*WR, 0); }
+  for (let i=0;i<4;i++){ const sp = cyl(.01,.01,WR*2,0xff9fbf,6); sp.rotation.z = i/4*Math.PI; put(wheel, sp, 0,0,-.09); }
+  wheel.position.set(-.32, WR+.14, 0); wheel.rotation.y = Math.PI/2; cage.add(wheel);
+  put(cage, box(.05,WR+.12,.05,0xc9b6ff,.01), -.3,(WR+.12)/2+.1,-.15); put(cage, cyl(.03,.03,.16,0xc9b6ff,8), -.3,WR+.16,-.1).rotation.x = Math.PI/2;
+  // 집, 밥그릇, 물병
+  put(cage, box(.32,.22,.26,0xbfe8d4,.06), .42,.22,-.2); const door = cyl(.07,.07,.02,0x4f6a5c,16); door.rotation.x = Math.PI/2; put(cage, door, .42,.2,-.065);
+  put(cage, box(.38,.05,.32,0x9fd8bd,.02), .42,.35,-.2);
+  put(cage, cyl(.09,.07,.05,0xffd36e,16), .35,.14,.24); for (let i=0;i<5;i++) put(cage, sph(.018,0x6b5040,6), .35+rand(-.04,.04),.17,.24+rand(-.04,.04));
+  put(cage, cyl(.04,.04,.24,0xa8dcff,10), .6,.42,.36); put(cage, cyl(.008,.008,.12,0xd0d0d0,4), .6,.26,.36);
+  put(world, cage, HAM.x, 0, HAM.z);
+  // 햄스터 모델
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const fur = 0xf6b85e, cream = 0xfff0d2;
+  const torso = sph(.13,fur,16); torso.scale.set(1,.92,1.12); put(body, torso, 0,.13,0);
+  const belly = sph(.1,cream,14); belly.scale.set(.9,.85,.6); put(body, belly, 0,.11,.07);
+  const head = new THREE.Group(); head.position.set(0,.27,.05); body.add(head);
+  const hd = sph(.115,fur,16); hd.scale.set(1.08,.95,1); put(head, hd, 0,0,0);
+  const muz = sph(.06,cream,12); muz.scale.set(1.25,.8,.8); put(head, muz, 0,-.035,.085);
+  for (const sx of [-1,1]) { put(head, sph(.024,0x1e1a24,10), sx*.045,.005,.1); put(head, sph(.008,0xffffff,6), sx*.045+.008,.015,.12);
+    const ch = sph(.025,0xffb3c0,10); ch.scale.z = .4; put(head, ch, sx*.075,-.035,.085);
+    const ear = sph(.04,fur,10); ear.scale.set(1,1,.5); put(head, ear, sx*.08,.09,-.01); const ein = sph(.026,0xffb6c8,8); ein.scale.set(1,1,.4); put(head, ein, sx*.08,.09,.008); }
+  put(head, sph(.014,0xff8fa8,8), 0,-.02,.13);
+  // 탐험 모자 + 고글
+  const hat = new THREE.Group(); hat.position.set(0,.06,0); head.add(hat);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(.105,16,10,0,Math.PI*2,0,Math.PI/2), mat(0xe2c48e)); dome.castShadow = true; hat.add(dome);
+  put(hat, cyl(.165,.165,.012,0xd6b47a,20), 0,0,0); put(hat, sph(.018,0xe2c48e,8), 0,.105,0);
+  put(hat, cyl(.108,.108,.025,0x8a5a3a,20), 0,.015,0);
+  for (const sx of [-1,1]) { const rim = tor(.03,.009,0x9a9aa6); put(hat, rim, sx*.038,.05,.085); put(hat, cyl(.024,.024,.01,new THREE.MeshStandardMaterial({ color:0xd8283e, emissive:0x7a0010, emissiveIntensity:.4, roughness:.2 }),14), sx*.038,.05,.088).rotation.x = Math.PI/2; }
+  // 빨간 스카프 + 배낭
+  const scarf = tor(.085,.022,0xe0424f); scarf.rotation.x = Math.PI/2; put(body, scarf, 0,.205,.02);
+  put(body, box(.13,.13,.07,0x8a5a3a,.03), 0,.15,-.14);
+  // 다리, 꼬리
+  const feet = []; for (const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]) { const f = sph(.03,0xffc2cc,8); f.scale.set(1,.6,1.3); feet.push(put(body, f, sx*.07,.02,sz*.07)); }
+  const armL = sph(.028,fur,8), armR = sph(.028,fur,8); put(body, armL, -.085,.15,.1); put(body, armR, .085,.15,.1);
+  g.scale.setScalar(1.0); g.traverse(o => { o.userData.ham = true; }); scene.add(g);
+  const tag = null;
+  return { g, body, head, feet, armL, armR, wheel, WR, cage, tag, bub:null, bubUntil:0, mode:'wheel', modeT:rand(8,14), spin:0, visit:null, visitT:rand(10,20), pos:new THREE.Vector3() };
+})();
+function hamSay(text, ms=2200){ if (ham.bub) ham.bub.remove(); if (MOBILE_MQ.matches) return; const b = document.createElement('div'); b.className = 'bub'; b.textContent = text; overlay.appendChild(b); ham.bub = b; ham.bubUntil = performance.now() + ms; }
+
 // --- 연차섬
 platform(13.4, 21.6, -14.6, -5.9, 0, 0xfff1d6);
 const VBEDS = [];
@@ -1447,6 +1501,46 @@ function summonCat(slot, c){
   catPathTo(k, x, z, 0);
 }
 function releaseCat(slot){ if (slot && slot.cat) { const k = slot.cat; k.playWith = null; k.wait = rand(1,3); slot.cat = null; } }
+function stepHamster(t, dt){
+  const H = ham, cx = HAM.x, cz = HAM.z;
+  H.modeT -= dt;
+  if (H.modeT <= 0) { const r = Math.random(); H.mode = r < .5 ? 'wheel' : r < .78 ? 'eat' : 'nap'; H.modeT = H.mode === 'nap' ? rand(10,18) : rand(8,15);
+    if (H.mode === 'wheel' && chance(.5)) hamSay(pick(['다다다다닷!','쳇바퀴 최고햄!','오늘도 운동 햄찍!']));
+    if (H.mode === 'eat' && chance(.5)) hamSay(pick(['해바라기씨 냠냠','볼주머니 가득!','오물오물…'])); }
+  let tx, tz, ry, y = .12;
+  if (H.mode === 'wheel') { tx = cx - .32; tz = cz; ry = Math.PI/2; H.spin += dt*9; y = .14; }
+  else if (H.mode === 'eat') { tx = cx + .35; tz = cz + .1; ry = 0; H.spin += dt*.5; }
+  else { tx = cx + .42; tz = cz + .02; ry = Math.PI; H.spin += dt*.3; }
+  if (H.visit) { tx = cx + (H.visit.side > 0 ? .5 : -.5); tz = cz + .3*H.visit.side*0 + (H.visit.front ? .3 : 0); ry = Math.atan2(H.visit.cat.m.root.position.x - tx, H.visit.cat.m.root.position.z - tz); }
+  const p = H.g.position; const d = Math.hypot(tx - p.x, tz - p.z); const moving = d > .03;
+  if (!p.lengthSq()) p.set(tx, y, tz);
+  if (moving) { const k = Math.min(1, dt*1.6/d); p.x += (tx-p.x)*k; p.z += (tz-p.z)*k; ry = Math.atan2(tx - p.x, tz - p.z); }
+  p.y += (y - p.y)*Math.min(1, dt*6);
+  let dr = ry - H.g.rotation.y; while (dr > Math.PI) dr -= Math.PI*2; while (dr < -Math.PI) dr += Math.PI*2; H.g.rotation.y += dr*Math.min(1, dt*8);
+  H.wheel.rotation.z = H.mode === 'wheel' && !H.visit && !moving ? -H.spin : H.wheel.rotation.z;
+  const run = (H.mode === 'wheel' && !H.visit && !moving) || moving, eat = H.mode === 'eat' && !moving && !H.visit, nap = H.mode === 'nap' && !moving && !H.visit;
+  const ph = t*(moving ? 18 : 26);
+  H.feet.forEach((f,i) => { f.position.y = .02 + (run ? Math.max(0, Math.sin(ph + (i%2 ? 0 : Math.PI)))*.035 : 0); });
+  H.body.position.y = run ? Math.abs(Math.sin(ph))*.02 : nap ? -.03 : 0;
+  H.body.scale.set(1, nap ? .85 + Math.sin(t*2)*.03 : 1, 1);
+  H.head.rotation.x = eat ? .25 + Math.sin(t*14)*.08 : nap ? .35 : H.visit ? -.2 : 0;
+  H.armL.position.y = H.armR.position.y = eat ? .19 + Math.sin(t*14)*.015 : .15;
+  // 고양이 친구 방문
+  H.visitT -= dt;
+  if (!H.visit && H.visitT <= 0) {
+    const free = cats.filter(c => !c.it && !c.playWith && !c.spot && c.m.root.position.y < .05 && c.area === 0);
+    if (free.length) { const cat = pick(free); const side = chance(.5) ? 1 : -1; const front = chance(.5);
+      const sx = front ? cx + rand(-.3,.3) : cx + side*(HAM.w/2 + .35), sz = front ? cz + HAM.d/2 + .35 : cz + rand(-.2,.2);
+      catPathTo(cat, sx, sz, 0); H.visit = { cat, side: front ? (sx > cx ? 1 : -1) : side, front, sx, sz, t:0, said:false }; }
+    H.visitT = rand(18,32);
+  }
+  if (H.visit) { const V = H.visit, cat = V.cat, cp = cat.m.root.position; V.t += dt;
+    const arrived = !cat.path.length && Math.hypot(cp.x - V.sx, cp.z - V.sz) < .3;
+    if (arrived) { cat.pose = 'sit'; cat.wait = 2; cat.m.root.rotation.y = Math.atan2(cx - cp.x, cz - cp.z);
+      if (!V.said) { V.said = true; catSay(cat, pick(['햄찍아 안녕옹~','같이 놀자옹!','오늘도 귀엽다옹']), 2400); setTimeout(() => hamSay(pick(['냥냥이 안녕햄!','친구 왔다 햄찍!','반가워햄~'])), 1300); }
+      if (chance(dt*2.2)) spawnHeart(new THREE.Vector3((cp.x + p.x)/2 + rand(-.15,.15), .8, (cp.z + p.z)/2 + rand(-.15,.15)), chance(.3) ? '✨' : '💗'); }
+    if (V.t > 14 || cat.it || cat.playWith || (V.t > 6 && cat.path.length && !arrived && Math.hypot(cp.x - V.sx, cp.z - V.sz) > 3)) { cat.wait = rand(1,3); H.visit = null; } }
+}
 function catSay(cat, text, ms){ if (cat.bub) cat.bub.remove(); const b = document.createElement('div'); b.className='bub'; b.textContent=text; overlay.appendChild(b); cat.bub=b; cat.bubUntil=performance.now()+ms; }
 function spawnHeart(pos, emo){ const el = document.createElement('div'); el.className='heart'; el.textContent=emo; overlay.appendChild(el); hearts.push({ pos, el, life:1.4 }); }
 
@@ -1530,6 +1624,8 @@ function updateOverlay(now, dt){
     else if (cat.bub && now > cat.bubUntil) { cat.bub.remove(); cat.bub = null; }
     if (cat.bub) placeEl(cat.bub, p.x, p.y + .95, p.z);
   }
+  { if (!ham.tag) { ham.tag = document.createElement('div'); ham.tag.className = 'tag cat'; ham.tag.textContent = '🐹 햄찍이'; overlay.appendChild(ham.tag); }
+    const p = ham.g.position; placeEl(ham.tag, p.x, p.y - .05, p.z); if (ham.bub) { if (now > ham.bubUntil) { ham.bub.remove(); ham.bub = null; } else placeEl(ham.bub, p.x, p.y + .55, p.z); } }
   for (let i=hearts.length-1;i>=0;i--){ const h = hearts[i]; h.life -= dt; h.pos.y += dt*.6; if (h.life<=0){ h.el.remove(); hearts.splice(i,1); continue; } placeEl(h.el, h.pos.x,h.pos.y,h.pos.z); h.el.style.opacity = Math.min(1,h.life*1.4); }
 }
 function countByStatus(){ const o = {}; for (const c of chars) { if (c.home) { o.home = (o.home||0)+1; continue; } o[c.status] = (o[c.status]||0)+1; } return o; }
@@ -1729,14 +1825,15 @@ renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, 
 function hit(e){
   const r = renderer.domElement.getBoundingClientRect();
   mouse.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(mouse, camera);
-  const hits = ray.intersectObjects([...cats.map(c => c.m.root), charGroup, ...BUSES.map(B => B.group)], true);
-  for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.bus) { const B = h.object.userData.bus; const ly = B.group.worldToLocal(h.point.clone()).y; return { bus:B, deck: ly > 2.0 ? 1 : 0 }; } if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
+  const hits = ray.intersectObjects([...cats.map(c => c.m.root), ham.g, charGroup, ...BUSES.map(B => B.group)], true);
+  for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.ham) return { ham:true }; if (h.object.userData.bus) { const B = h.object.userData.bus; const ly = B.group.worldToLocal(h.point.clone()).y; return { bus:B, deck: ly > 2.0 ? 1 : 0 }; } if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
   return null;
 }
 renderer.domElement.addEventListener('pointerup', e => {
   if (!downAt || Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5) return;
   const h = hit(e);
   if (h && h.cat) { openCatMenu(h.cat, e.clientX, e.clientY); return; }
+  if (h && h.ham) { hamSay(pick(['햄찍!','쓰다듬어줘서 고마워햄','해바라기씨 있어요?','오늘도 화이팅햄!']), 2400); for (let i=0;i<4;i++) spawnHeart(ham.g.position.clone().add(new THREE.Vector3(rand(-.2,.2),.5+rand(0,.2),rand(-.2,.2))), '💗'); return; }
   closeCatMenu();
   if (h && h.char) { selectedId = h.char; renderPanel(); }
   if (h && h.bus) { // 버스 1층/2층 클릭 → 내 캐릭터 자리 옮기기
@@ -1792,7 +1889,7 @@ function frame(now){
     if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/38) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
   }
   const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
-  applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepSmoke(dt);
+  applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
   for (const s of SLOTS.shred) if (s.shredder) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); const pp = s.shredder.paper; pp.visible = !!on; if (on) { pp.position.y = 1.15 - ((t*.5 + s.shredder.x) % 1)*.35; } s.shredder.led.material.color.setHex(on ? 0xff7a7a : 0x6fe0a0); s.shredder.led.material.emissive.setHex(on ? 0xff7a7a : 0x6fe0a0); }
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
   const sel = chars.find(c => c.id === selectedId);
@@ -1906,7 +2003,7 @@ document.getElementById('loading').textContent = '사무실 불러오는 중…'
   } else { const dot = $('connDot'), txt = $('connText'); dot.classList.add('on'); txt.textContent = canWrite ? '모두와 실시간 공유 중' : '보기 전용으로 공유 중'; }
   const ld = document.getElementById('loading'); if (ld) ld.remove();
 })();
-window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, BUS, BUSES, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepBus(.05); stepChars(tt,.05); stepCats(tt,.05); } } };
+window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, BUS, BUSES, ham, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepBus(.05); stepChars(tt,.05); stepCats(tt,.05); stepHamster(tt,.05); } } };
 requestAnimationFrame(t => { last = t; frame(t); });
 </script>
 </body>
