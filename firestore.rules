@@ -24,7 +24,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['name', 'nt', 'look', 'status', 'st', 'owner', 'order', 'desk'])
         && request.resource.data.name is string && request.resource.data.name.size() <= 12
       );
-      allow delete: if isOwner() || (signedIn() && id != 'riri' && resource.data.owner == request.auth.uid);
+      allow delete: if isOwner() || (signedIn() && id != 'riri' && resource.data.owner == request.auth.uid)
+        // 4시간 넘게 접속 안 한 사람 캐릭터는 누구나 정리 가능
+        || (signedIn() && id != 'riri' && exists(/databases/$(database)/documents/presence/$(id))
+            && get(/databases/$(database)/documents/presence/$(id)).data.seen < request.time.toMillis() - 14400000);
       allow update: if isOwner() || (
         signedIn() && id != 'riri'
         // 주인 없는 캐릭터거나 내 캐릭터일 때만

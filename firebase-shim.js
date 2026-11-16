@@ -100,8 +100,7 @@ if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
     const peersCbs = [];
     const presRef = fs.doc(db, `presence/${uid}`);
     let name = '', lastBeat = 0, peers = 0;
-    const beat = (force) => {
-      if (document.visibilityState === 'hidden') return;
+    const beat = (force) => { // 탭을 숨겨 둬도 열려만 있으면 '접속 중'
       if (!force && Date.now() - lastBeat < 4.5 * 60 * 1000) return;
       lastBeat = Date.now();
       fs.setDoc(presRef, { seen: Date.now(), name }).catch(() => {});
@@ -113,8 +112,19 @@ if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
         peers = r.data().count; peersCbs.forEach(f => f(peers));
       } catch (_) {}
     };
-    beat(true); setTimeout(count, 1500);
+    // 4시간 넘게 접속 안 한 사람 캐릭터 지우기 (규칙에서 presence.seen 으로 한 번 더 확인)
+    const STALE = 4 * 3600 * 1000;
+    const sweep = async () => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        const now = Date.now();
+        const snap = await fs.getDocs(fs.query(fs.collection(db, 'presence'), fs.where('seen', '<', now - STALE), fs.where('seen', '>', now - 7 * 24 * 3600 * 1000)));
+        for (const d of snap.docs) { if (d.id === uid) continue; await fs.deleteDoc(fs.doc(db, `chars/${d.id}`)).catch(() => {}); }
+      } catch (_) {}
+    };
+    beat(true); setTimeout(count, 1500); setTimeout(sweep, 20000);
     setInterval(() => { beat(); count(); }, 5 * 60 * 1000);
+    setInterval(sweep, 30 * 60 * 1000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { beat(); } });
     return {
       on: (topic, f) => { (handlers[topic] || (handlers[topic] = [])).push(f); },

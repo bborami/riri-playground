@@ -134,7 +134,17 @@
     #app{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
     #stage{height:64vh;flex:none}
     #panel{width:100%;border-left:none;border-top:1px solid var(--line)}
+    .title p, .title .hint{display:none}
+    .title{padding:6px 12px;top:8px;left:8px}
+    .title h1{font-size:16px}
+    .workclock{top:54px !important;left:8px !important}
+    .zl{display:none !important}
   }
+  #zoneBar{display:none;position:absolute;left:0;right:0;bottom:8px;gap:6px;overflow-x:auto;padding:4px 8px;z-index:5;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #zoneBar::-webkit-scrollbar{display:none}
+  #zoneBar button{flex:none;font-family:inherit;font-size:13px;font-weight:700;border:none;border-radius:999px;padding:8px 12px;color:var(--ink);box-shadow:0 3px 10px rgba(120,90,160,.2);white-space:nowrap}
+  #zoneBar button.cur{outline:3px solid #8f7bd6}
+  @media (max-width:820px){ #zoneBar{display:flex} }
 </style>
 </head>
 <body>
@@ -227,7 +237,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-stage.prepend(renderer.domElement); { const sky = document.createElement('div'); sky.id = 'nightSky'; stage.prepend(sky); }
+stage.prepend(renderer.domElement); { const zb = document.createElement('div'); zb.id = 'zoneBar'; stage.appendChild(zb); } { const sky = document.createElement('div'); sky.id = 'nightSky'; stage.prepend(sky); }
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
 camera.position.set(-6, 44, 52);
@@ -456,8 +466,10 @@ function busAt(s){ s = ((s % BUS_TOTAL) + BUS_TOTAL) % BUS_TOTAL; let i = 1; whi
 const BUS_STOP_S = (() => { let best = 0, bd = 1e9; for (let s=0;s<BUS_TOTAL;s+=.05){ const q = busAt(s); const d = Math.hypot(q.x-(-14.35), q.z-3.2); if (d<bd){bd=d;best=s;} } return best; })();
 const BUS_GAP = 5.6; // 앞차와 이만큼 떨어지기
 function stepBus(dt){
+  let need = false; try { need = chars.some(c => c.status === 'commute' && !c.home); } catch (e) {}
   for (const B of BUSES) {
-    if (B.wait > 0) { B.wait -= dt; B.stopped = true; }
+    if (!need && B.wait > 0) { B.wait = Math.max(B.wait, .3); B.stopped = true; } // 탈 사람 없으면 정류장에 계속 서 있기
+    else if (B.wait > 0) { B.wait -= dt; B.stopped = true; }
     else { B.stopped = false;
       const ahead = BUSES.filter(o => o !== B).map(o => ((o.s - B.s) % BUS_TOTAL + BUS_TOTAL) % BUS_TOTAL).reduce((m,v) => Math.min(m,v), 1e9);
       const step = Math.max(0, Math.min(B.speed*dt, ahead - BUS_GAP));
@@ -1048,6 +1060,7 @@ function buildChars(list){
     m.root.traverse(o => { o.userData.charId = d.id; });
     charGroup.add(m.root);
     const tag = document.createElement('div'); tag.className = 'tag'; overlay.appendChild(tag);
+    const six = sixAM(); if ((d.st||0) < six && d.status !== 'work') { d = { ...d, status:'work', st:six }; } // 아침 6시 리셋
     const c = { ...d, m, tag, deskIdx: -1, deskPref: Number.isInteger(d.desk) && d.desk >= 0 && d.desk < SLOTS.work.length ? d.desk : -1, path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
     return c;
   });
@@ -1099,7 +1112,7 @@ function setStatus(id, key, opts={}){
   if (opts.remote && t <= c.st) return;
   const changed = c.status !== key;
   c.status = key; c.st = t;
-  if (changed) { routeTo(c, key); say(c, pick(SBYKEY[key].lines)); toast(`${c.name} → ${SBYKEY[key].emoji} ${SBYKEY[key].label}`); }
+  if (changed) { routeTo(c, key); say(c, pick(SBYKEY[key].lines)); if (!opts.quiet) toast(`${c.name} → ${SBYKEY[key].emoji} ${SBYKEY[key].label}`); }
   saveLocal(); renderPanel();
   if (!opts.remote) { if (dbMode) dbWrite(id, { status:key, st:t }); else send({ kind:'status', id, status:key, t, ver:roster.ver }); }
 }
@@ -1230,8 +1243,16 @@ function animateChar(c, t, dt){
   m.cup.visible = T.cup; m.wand.visible = !!T.wand; m.cig.visible = !!T.cig; m.phone.visible = !!T.phone; m.root.visible = T.vis;
 }
 
+// 퇴근버스 타고 10분 지나면 집에 간 걸로 (17:30 이후 퇴근중으로 바꾼 사람, 15시간 동안)
+const HOME_AFTER = 10*60e3, HOME_FOR = 15*3600e3;
+function isHome(c, now){ if (c.status !== 'commute' || !c.st) return false; const age = now - c.st; if (age < HOME_AFTER || age >= HOME_FOR) return false;
+  const d = new Date(c.st + 9*3600e3), mins = d.getUTCHours()*60 + d.getUTCMinutes(); return mins >= 17*60+30; }
 function stepChars(t, dt){
+  const nowMs = Date.now();
   for (const c of chars) {
+    const home = isHome(c, nowMs);
+    if (home) { c.m.root.visible = false; if (!c.home) { c.home = true; freeSlot(c); c.path = []; c.m.root.position.set(-14.9, 0, 3.2); c.m.root.visible = false; if (c.bub) { c.bub.remove(); c.bub = null; } } continue; }
+    if (c.home) { c.home = false; c.m.root.visible = true; if (!c.slot && !c.path.length) routeTo(c, c.status); }
     if (c.slot && c.slot.bus) { // 버스 안
       const BG = c.slot.bus.group; const w = c.slot.local.clone().applyMatrix4(BG.matrixWorld); c.m.root.position.copy(w); c.m.root.rotation.y = BG.rotation.y; c.pose = 'ride';
       if (!c.bub && chance(dt*.04)) say(c, pick(SBYKEY.commute.lines), 2500);
@@ -1440,12 +1461,30 @@ for (const z of STATUSES) {
 }
 // 출퇴근 시계 (한국 시간 9시 출근 · 18시 퇴근)
 const NIGHT = { v:0, target:0, applied:-1 };
+// 모바일: 구역 하나씩 보기
+const isMobile = () => matchMedia('(max-width:820px)').matches;
+let camFly = null, focusKey = null;
+function focusZone(key, instant){ const a = ZONE_ANCHORS[key]; if (!a) return; focusKey = key;
+  const tg = new THREE.Vector3(a[0], Math.max(0, a[1]-2.2), a[2]), pos = tg.clone().add(new THREE.Vector3(0, 13, 15));
+  if (instant) { controls.target.copy(tg); camera.position.copy(pos); controls.update(); camFly = null; } else camFly = { tg, pos };
+  renderZoneBar(); }
+let zbSig = '';
+function renderZoneBar(){ const zb = document.getElementById('zoneBar'); if (!zb || !isMobile()) return; const counts = countByStatus();
+  const sig = STATUSES.map(z => z.key + z.label + (counts[z.key]||0)).join() + focusKey; if (sig === zbSig) return; zbSig = sig;
+  zb.innerHTML = `<button data-z="all" style="background:#fff" class="${focusKey ? '' : 'cur'}">🗺️ 전체</button>` + STATUSES.map(z => `<button data-z="${z.key}" style="background:${z.ic}" class="${z.key===focusKey?'cur':''}">${z.emoji} ${z.label} ${counts[z.key]||0}</button>`).join('');
+  zb.querySelectorAll('button').forEach(b => b.onclick = () => { if (b.dataset.z === 'all') { focusKey = null; camFly = { tg:new THREE.Vector3(0,0,-.4), pos:new THREE.Vector3(-6,44,52) }; zbSig = ''; renderZoneBar(); } else focusZone(b.dataset.z); }); }
 const COMMUTE_AM = { label:'출근중', sub:'버스 타고 출근하는 중', lines:SBYKEY.commute.lines.slice() };
 const COMMUTE_PM = { label:'퇴근중', sub:'버스 타고 퇴근하는 중', lines:['드디어 퇴근!','오늘도 버텼다','집에 가고 싶다…가는 중이지','저녁 뭐 먹지','내일 또 출근이라니','기사님 집으로 가주세요!'] };
 function kstNow(){ const d = new Date(Date.now() + 9*3600e3); return { h:d.getUTCHours(), m:d.getUTCMinutes(), s:d.getUTCSeconds(), wd:d.getUTCDay() }; }
 const pad2 = n => String(n).padStart(2,'0');
 let commuteMode = '';
+function sixAM(now = Date.now()){ const K = 9*3600e3, D = 864e5; let six = Math.floor((now + K)/D)*D + 6*3600e3 - K; if (now < six) six -= D; return six; }
+let lastSix = sixAM();
+function morningReset(){ const six = sixAM(); if (six === lastSix) return; lastSix = six; let n = 0;
+  for (const c of chars) { c.deckPref = undefined; if ((c.st||0) < six && c.status !== 'work') { setStatus(c.id, 'work', { remote:true, t:six, quiet:true }); n++; } }
+  toast('🌅 좋은 아침! 모두 업무중으로 리셋했어요'); renderPanel(true); }
 function tickClock(){
+  if (chars.length) morningReset();
   const k = kstNow(), sec = k.h*3600 + k.m*60 + k.s, START = 9*3600, END = 18*3600, weekend = k.wd === 0 || k.wd === 6;
   const mode = sec >= END - 30*60 ? 'pm' : 'am'; // 퇴근버스는 17:30부터
   NIGHT.target = (sec >= END || sec < 6*3600) ? 1 : 0; // 18시~새벽 6시 야간
@@ -1488,7 +1527,7 @@ function updateOverlay(now, dt){
   }
   for (let i=hearts.length-1;i>=0;i--){ const h = hearts[i]; h.life -= dt; h.pos.y += dt*.6; if (h.life<=0){ h.el.remove(); hearts.splice(i,1); continue; } placeEl(h.el, h.pos.x,h.pos.y,h.pos.z); h.el.style.opacity = Math.min(1,h.life*1.4); }
 }
-function countByStatus(){ const o = {}; for (const c of chars) o[c.status] = (o[c.status]||0)+1; return o; }
+function countByStatus(){ const o = {}; for (const c of chars) { if (c.home) { o.home = (o.home||0)+1; continue; } o[c.status] = (o[c.status]||0)+1; } return o; }
 
 // 선택 표시 링
 const selRing = M(new THREE.RingGeometry(.42,.52,32), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:.9, side:THREE.DoubleSide }), false);
@@ -1531,9 +1570,9 @@ function renderPanel(full){
     const c = chars.find(x => x.id === row.dataset.id); const z = SBYKEY[c.status];
     row.classList.toggle('sel', c.id === selectedId);
     row.querySelector('.nm').innerHTML = `${esc(c.name)}${c.id===meId?'<span class="me">나</span>':(dbMode && charOwner[c.id] ? ' <span title="다른 분이 사용 중">🔒</span>' : '')}`;
-    const chip = row.querySelector('.chip'); chip.textContent = `${z.emoji} ${z.label}`; chip.style.background = z.ic;
+    const chip = row.querySelector('.chip'); chip.textContent = c.home ? '🏠 집에 감' : `${z.emoji} ${z.label}`; chip.style.background = c.home ? '#e3e0ef' : z.ic;
   });
-  $('counts').innerHTML = STATUSES.map(z => `<span class="chip" style="background:${z.ic}">${z.emoji} ${z.label} ${counts[z.key]||0}</span>`).join('');
+  $('counts').innerHTML = STATUSES.map(z => `<span class="chip" style="background:${z.ic}">${z.emoji} ${z.label} ${counts[z.key]||0}</span>`).join('') + (counts.home ? `<span class="chip" style="background:#e3e0ef">🏠 집에 감 ${counts.home}</span>` : '');
   const sel = chars.find(c => c.id === selectedId) || chars.find(c => c.id === meId);
   if (sel && !selectedId) selectedId = sel.id;
   const grid = $('statusGrid');
@@ -1596,6 +1635,8 @@ function placeClock(){ // 상단 가운데, 제목·접속 박스와 안 겹치�
   const w = wc.offsetWidth, lo = t.right - st.left + 12, hi = (cn.width ? cn.left - st.left : st.width) - 12 - w;
   let x = st.width/2 - w/2; x = Math.max(x, lo); if (x > hi) { wc.style.left = '18px'; wc.style.top = (t.bottom - st.top + 8) + 'px'; } else { wc.style.left = x + 'px'; wc.style.top = '16px'; }
 }
+controls.addEventListener('start', () => { camFly = null; });
+if (isMobile()) focusZone('work', true);
 tickClock(); placeClock(); setInterval(() => { tickClock(); placeClock(); }, 1000); addEventListener('resize', placeClock); setTimeout(placeClock, 1500);
 $('deckActs').querySelectorAll('button').forEach(b => b.onclick = () => { const sel = chars.find(c => c.id === selectedId); if (sel && canControl(sel)) moveDeck(sel.id, +b.dataset.d); });
 $('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
@@ -1751,6 +1792,8 @@ function frame(now){
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
   const sel = chars.find(c => c.id === selectedId);
   if (sel && sel.m.root.visible) { selRing.visible = true; selRing.position.set(sel.m.root.position.x, sel.m.root.position.y + .03 + (sel.slot && sel.slot.seat && !sel.path.length ? 0 : 0), sel.m.root.position.z); selRing.rotation.z = t; } else selRing.visible = false;
+  if (camFly) { const k = Math.min(1, dt*4); controls.target.lerp(camFly.tg, k); camera.position.lerp(camFly.pos, k); if (camera.position.distanceTo(camFly.pos) < .05) camFly = null; }
+  if (isMobile()) renderZoneBar();
   controls.update();
   renderer.render(scene, camera);
   updateOverlay(now, dt);
