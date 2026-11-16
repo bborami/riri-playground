@@ -35,6 +35,11 @@
   .title .hint{margin-top:4px;color:#b07aa8;font-weight:700}
   .title .clock{margin-top:6px;display:inline-block;padding:4px 10px;border-radius:999px;background:#fff3c2;color:#6a4d1e;font-weight:800;font-variant-numeric:tabular-nums}
   .title .clock:empty{display:none}
+  .title .workbar{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:11px;font-weight:800;color:#8a6fa0;font-variant-numeric:tabular-nums}
+  .title .workbar[hidden]{display:none}
+  .title .wb{position:relative;flex:1;min-width:150px;height:14px;border-radius:999px;background:#efe6fb;overflow:hidden}
+  .title .wb i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#ffd6e8,#c9b6ff);transition:width .8s}
+  .title .wb em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;color:#5a4470}
   .conn{position:absolute;right:16px;top:16px;background:var(--panel);border-radius:14px;padding:7px 12px;font-size:12.5px;box-shadow:0 6px 18px rgba(160,120,200,.2);display:flex;gap:6px;align-items:center}
   .dot{width:8px;height:8px;border-radius:50%;background:#cbbfd8;display:inline-block}
   .dot.on{background:#5fcf8f;box-shadow:0 0 0 3px rgba(95,207,143,.25)}
@@ -128,7 +133,7 @@
   <div id="stage">
     <div id="loading">사무실 짓는 중…</div>
     <div id="overlay"></div>
-    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p><p class="hint">버벅이면 🪶 가볍게 보기를 눌러주세요</p><p class="clock" id="offClock"></p></div>
+    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p><p class="hint">버벅이면 🪶 가볍게 보기를 눌러주세요</p><div class="workbar" id="workBar"><span>09:00</span><div class="wb"><i id="wbFill"></i><em id="wbPct"></em></div><span>18:00</span></div><p class="clock" id="offClock"></p></div>
     <div class="conn"><span class="dot" id="connDot"></span><span id="connText">혼자 보는 중</span></div>
     <div id="catMenu" hidden><div class="cn">🐾</div><button data-act="pet">🖐️ 쓰다듬기</button><button data-act="churu">🍡 츄르 주기</button><button data-act="play">🪶 놀아주기</button><span class="x">✕</span></div>
     <div id="toasts"></div>
@@ -1394,6 +1399,9 @@ function tickClock(){
   else if (sec < END) txt = `⏰ 퇴근까지 ${fmt(END - sec)}`;
   else txt = '🎉 퇴근 시간! 오늘도 수고했어요';
   setText($('offClock'), txt);
+  const r = weekend ? 0 : Math.min(1, Math.max(0, (sec - START) / (END - START)));
+  const fill = $('wbFill'); const w = (r*100).toFixed(1) + '%'; if (fill._w !== w) { fill.style.width = w; fill._w = w; }
+  setText($('wbPct'), weekend ? '주말 🎉' : sec < START ? '출근 전' : sec >= END ? '100% 퇴근!' : `오늘 근무 ${Math.floor(r*100)}%`);
 }
 const v3 = new THREE.Vector3();
 let RECT = null;
