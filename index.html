@@ -75,6 +75,10 @@
   .acts[hidden]{display:none}
   .acts button{flex:1;font-family:inherit;font-size:13.5px;font-weight:500;border:none;border-radius:14px;padding:9px 6px;cursor:pointer;color:var(--ink);background:#ffe1ea;box-shadow:0 3px 0 rgba(90,60,120,.12)}
   .acts button:first-child{background:#e9e4f2}
+  .zl{pointer-events:auto;cursor:pointer;transition:transform .12s, box-shadow .12s}
+  .zl:hover{box-shadow:0 0 0 3px #c9b6ff, 0 8px 22px rgba(140,100,200,.3)}
+  .zl:active{filter:brightness(.95)}
+  .acts button.cur{outline:2px solid #8f7bd6;font-weight:700}
   .heart{position:absolute;transform:translate(-50%,-50%);font-size:15px}
   @keyframes pop{from{transform:translate(-50%,-100%) scale(.5);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
 
@@ -153,6 +157,7 @@
       <div class="st" id="lockNote" hidden style="margin-top:8px"></div>
       <div class="deskRow" id="deskRow" hidden><span>🪑 내 자리</span><select id="deskSel"></select></div>
       <form class="sayBox" id="sayBox" hidden><input id="sayIn" maxlength="40" placeholder="💬 말풍선에 할 말 (40자)" autocomplete="off"><button type="submit">말하기</button></form>
+      <div class="acts" id="deckActs" hidden><button data-d="1">⬆️ 2층으로</button><button data-d="0">⬇️ 1층으로</button></div>
       <div class="acts" id="roofActs" hidden><button data-a="smoke">🚬 담타</button><button data-a="shout">📢 소리지르기</button></div>
     </div>
     <div class="sec"><h2>구역별 인원</h2><div class="counts" id="counts"></div></div>
@@ -440,8 +445,8 @@ function makeBus(body, stripe, sign){ // 2층 버스: 아래층 5줄 + 위층(�
   for (const x of [-.55,.55]) put(g, sph(.09,new THREE.MeshStandardMaterial({ color:0xfff4c2, emissive:0xffe28a, emissiveIntensity:.6 }),10), x,Y+.4,2.34);
   for (const fy of [Y, U]) for (const z of [-1.75,-.95,-.15,.65,1.45]) for (const x of [-.4,.4]) {
     put(g, box(.5,.1,.5,0x8f7bd6,.04), x,fy+.4,z); put(g, box(.5,.5,.08,0x8f7bd6,.04), x,fy+.65,z-.24);
-    B.seats.push({ local:new THREE.Vector3(x, fy+.06, z+.05), seat:.38, pose:'ride', ry:0, pos:[0,0,0], via:'BS1', approach:[], bus:B, occ:null }); }
-  world.add(g); return B;
+    B.seats.push({ local:new THREE.Vector3(x, fy+.06, z+.05), seat:.38, pose:'ride', ry:0, pos:[0,0,0], via:'BS1', approach:[], bus:B, deck: fy === U ? 1 : 0, occ:null }); }
+  g.traverse(o => { o.userData.bus = B; }); world.add(g); return B;
 }
 const BUSES = [makeBus(0xffd98a, 0x9fe3c4, 0xff8fa8), makeBus(0xffc2d6, 0xc9b6ff, 0x7fd0ff)];
 BUSES[1].s = BUS_TOTAL / 2;
@@ -1118,6 +1123,7 @@ function snapshot(){ return { kind:'snapshot', ver:roster.ver, fresh:roster.fres
 function receive(raw){
   const m = raw && raw.kind ? raw : (raw && raw.data && raw.data.kind ? raw.data : null);
   if (!m || m.from === clientId) return;
+  if (m.kind === 'action' && m.type === 'deck') { if (m.ver === roster.ver || dbMode) moveDeck(m.id, m.deck ? 1 : 0, { remote:true, uid:m._uid }); return; }
   if (m.kind === 'action' && m.type === 'say') { if (m.ver === roster.ver || dbMode) speak(m.id, m.text, { remote:true, uid:m._uid }); return; }
   if (m.kind === 'action' && (!dbMode || true)) { if (m.ver === roster.ver || dbMode) triggerAction(m.id, m.type, { remote:true }); return; }
   if (dbMode) return;
@@ -1232,7 +1238,7 @@ function stepChars(t, dt){
       animateChar(c, t, dt); continue;
     }
     if (c.status === 'commute' && !c.path.length && c.slot && !c.slot.bus) { // 정류장에서 버스 타기
-      const SB = BUSES.find(B => B.stopped && B.seats.some(x => !x.occ)); const seat = SB && SB.seats.find(x => !x.occ);
+      const SB = BUSES.find(B => B.stopped && B.seats.some(x => !x.occ)); const seat = SB && (SB.seats.find(x => !x.occ && x.deck === c.deckPref) || SB.seats.find(x => !x.occ));
       if (seat) { freeSlot(c); seat.occ = c.id; c.slot = seat; continue; }
     }
     const strolling = c.status === 'stroll' && c.slot && c.slot.loop;
@@ -1378,6 +1384,18 @@ function spawnSmoke(c){
   mesh.position.copy(p); scene.add(mesh); smokes.push({ mesh, life:2.2, v:new THREE.Vector3(rand(-.08,.08)+fwd.x*.15, rand(.25,.4), rand(-.08,.08)+fwd.z*.15) });
 }
 function stepSmoke(dt){ for (let i=smokes.length-1;i>=0;i--){ const s = smokes[i]; s.life -= dt; s.mesh.position.addScaledVector(s.v, dt); s.mesh.scale.multiplyScalar(1 + dt*.9); s.mesh.material.opacity = Math.max(0, s.life/2.2*.75); if (s.life <= 0) { scene.remove(s.mesh); s.mesh.material.dispose(); smokes.splice(i,1); } } }
+function moveDeck(id, deck, opts={}){
+  const c = chars.find(c => c.id === id); if (!c) return;
+  if (opts.remote && dbMode && opts.uid && charOwner[id] && charOwner[id] !== opts.uid) return;
+  c.deckPref = deck;
+  if (c.slot && c.slot.bus && c.slot.deck !== deck) {
+    const seat = c.slot.bus.seats.find(x => !x.occ && x.deck === deck);
+    if (seat) { c.slot.occ = null; seat.occ = c.id; c.slot = seat; if (!opts.remote) say(c, deck ? '2층 경치 최고!' : '1층이 편해~', 2500); }
+    else if (!opts.remote) toast(deck ? '2층 자리가 꽉 찼어요' : '1층 자리가 꽉 찼어요');
+  } else if (!opts.remote && !(c.slot && c.slot.bus)) toast(`다음 버스는 ${deck ? '2층' : '1층'}에 탈게요 🚌`);
+  if (!opts.remote) send({ kind:'action', id, type:'deck', deck, t:Date.now(), ver:roster.ver });
+  renderPanel(true);
+}
 function speak(id, text, opts={}){
   const c = chars.find(c => c.id === id); if (!c) return;
   text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!text) return;
@@ -1412,6 +1430,12 @@ const zoneEls = {};
 for (const z of STATUSES) {
   const el = document.createElement('div'); el.className = 'zl';
   el.innerHTML = `<div class="ic" style="background:${z.ic}">${z.emoji}</div><div><b>${z.label}</b><small></small></div>`;
+  el.title = `눌러서 ${z.label}(으)로 가기`;
+  el.addEventListener('click', () => { const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
+    const who = [sel, me].find(c => c && canControl(c) && !(dbMode && !canWrite));
+    if (!who) { toast('🔒 내 캐릭터를 먼저 만들거나 골라주세요'); return; }
+    if (who.status === z.key) { toast(`이미 ${SBYKEY[z.key].label}이에요`); return; }
+    selectedId = who.id; setStatus(who.id, z.key); renderPanel(true); });
   overlay.appendChild(el); zoneEls[z.key] = el;
 }
 // 출퇴근 시계 (한국 시간 9시 출근 · 18시 퇴근)
@@ -1517,6 +1541,8 @@ function renderPanel(full){
   $('renameBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
   $('rerollBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
   $('roofActs').hidden = !sel || sel.status !== 'roof' || !ctl;
+  $('deckActs').hidden = !sel || sel.status !== 'commute' || !ctl || (dbMode && !canWrite);
+  if (sel) $('deckActs').querySelectorAll('button').forEach(b => { const d = +b.dataset.d, cur = sel.slot && sel.slot.bus ? sel.slot.deck : sel.deckPref; b.classList.toggle('cur', cur === d); });
   $('sayBox').hidden = !sel || !ctl || (dbMode && !canWrite);
   $('deskRow').hidden = !sel || !ctl || (dbMode && !canWrite);
   if (sel && ctl) { const dk = sel.id + '|' + chars.map(c => c.id + ':' + c.deskPref + ':' + c.deskIdx + ':' + c.name).join(',');
@@ -1571,6 +1597,7 @@ function placeClock(){ // 상단 가운데, 제목·접속 박스와 안 겹치�
   let x = st.width/2 - w/2; x = Math.max(x, lo); if (x > hi) { wc.style.left = '18px'; wc.style.top = (t.bottom - st.top + 8) + 'px'; } else { wc.style.left = x + 'px'; wc.style.top = '16px'; }
 }
 tickClock(); placeClock(); setInterval(() => { tickClock(); placeClock(); }, 1000); addEventListener('resize', placeClock); setTimeout(placeClock, 1500);
+$('deckActs').querySelectorAll('button').forEach(b => b.onclick = () => { const sel = chars.find(c => c.id === selectedId); if (sel && canControl(sel)) moveDeck(sel.id, +b.dataset.d); });
 $('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
 $('sayBox').onsubmit = e => { e.preventDefault(); const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
   const t = $('sayIn').value; if (!t.trim()) return; speak(sel.id, t); $('sayIn').value = ''; };
@@ -1656,8 +1683,8 @@ renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, 
 function hit(e){
   const r = renderer.domElement.getBoundingClientRect();
   mouse.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(mouse, camera);
-  const hits = ray.intersectObjects([...cats.map(c => c.m.root), charGroup], true);
-  for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
+  const hits = ray.intersectObjects([...cats.map(c => c.m.root), charGroup, ...BUSES.map(B => B.group)], true);
+  for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.bus) { const B = h.object.userData.bus; const ly = B.group.worldToLocal(h.point.clone()).y; return { bus:B, deck: ly > 2.0 ? 1 : 0 }; } if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
   return null;
 }
 renderer.domElement.addEventListener('pointerup', e => {
@@ -1666,6 +1693,11 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (h && h.cat) { openCatMenu(h.cat, e.clientX, e.clientY); return; }
   closeCatMenu();
   if (h && h.char) { selectedId = h.char; renderPanel(); }
+  if (h && h.bus) { // 버스 1층/2층 클릭 → 내 캐릭터 자리 옮기기
+    const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
+    const who = [sel, me].find(c => c && canControl(c) && c.slot && c.slot.bus === h.bus) || [sel, me].find(c => c && canControl(c) && c.status === 'commute');
+    if (who) moveDeck(who.id, h.deck); else toast('🚌 내 캐릭터가 출퇴근중일 때 1층/2층을 고를 수 있어요');
+  }
 });
 renderer.domElement.addEventListener('pointermove', e => { if (e.buttons) return; const h = hit(e); renderer.domElement.style.cursor = h ? (h.cat ? 'grab' : 'pointer') : 'default'; });
 let menuCat = null;
