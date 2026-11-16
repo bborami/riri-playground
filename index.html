@@ -1402,7 +1402,7 @@ const pad2 = n => String(n).padStart(2,'0');
 let commuteMode = '';
 function tickClock(){
   const k = kstNow(), sec = k.h*3600 + k.m*60 + k.s, START = 9*3600, END = 18*3600, weekend = k.wd === 0 || k.wd === 6;
-  const mode = sec >= END ? 'pm' : 'am';
+  const mode = sec >= END - 30*60 ? 'pm' : 'am'; // 퇴근버스는 17:30부터
   if (mode !== commuteMode) { commuteMode = mode; Object.assign(SBYKEY.commute, mode === 'pm' ? COMMUTE_PM : COMMUTE_AM);
     const b = zoneEls.commute && zoneEls.commute.querySelector('b'); if (b) b.textContent = SBYKEY.commute.label;
     if (typeof renderPanel === 'function' && chars.length) renderPanel(true); }
