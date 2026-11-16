@@ -31,8 +31,9 @@ service cloud.firestore {
         && (resource.data.owner == '' || resource.data.owner == request.auth.uid)
         // 소유자는 비우거나 나로만
         && (request.resource.data.owner == '' || request.resource.data.owner == request.auth.uid)
-        // 외형/순서는 못 바꿈
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'nt', 'status', 'st', 'owner'])
+        // 순서는 못 바꿈 (외형은 내 캐릭터만 바꿀 수 있음)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'nt', 'status', 'st', 'owner', 'look'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['look']) || resource.data.owner == request.auth.uid)
         && request.resource.data.name is string && request.resource.data.name.size() <= 12
       );
     }
