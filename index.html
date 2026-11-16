@@ -207,9 +207,9 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 stage.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
-camera.position.set(-6, 43, 49);
+camera.position.set(-6, 44, 52);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0, -1.2);
+controls.target.set(0, 0, -.4);
 controls.enableDamping = true; controls.dampingFactor = .08;
 controls.minDistance = 14; controls.maxDistance = 75; controls.maxPolarAngle = 1.25; controls.minPolarAngle = .35;
 controls.update();
@@ -312,15 +312,15 @@ for (const cx of OFFICE.clusters) for (const rz of OFFICE.rows) deskCluster(cx, 
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
   return [aisleX, aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3'];
 });
-// --- 업무 별관 (앞쪽 플랫폼, 책상 24개)
-const ANNEX = { clusters:[-6.6,-1.6,3.4], rows:[8.6,10.2,11.8,13.4], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
-platform(-11.5, 7.6, 7.0, 14.8, 0);
-rug(-2.0, 11.0, 17.4, 7.0, 0xefe6fd);
+// --- 업무 별관 (앞쪽 플랫폼, 책상 30개)
+const ANNEX = { clusters:[-6.6,-1.6,3.4], rows:[8.6,10.2,11.8,13.4,15.0], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
+platform(-11.5, 7.6, 7.0, 16.4, 0);
+rug(-2.0, 11.8, 17.4, 8.6, 0xefe6fd);
 for (const bx of [-4.1, 1.1]) {
   for (let i=0;i<4;i++) put(world, box(1.2,.1,.32,C.wood,.03), bx, -.05, 5.75+i*.34);
   for (const sx of [-.62,.62]) { put(world, box(.05,.05,1.5,C.woodDark,.02), bx+sx,.6,6.3); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,5.6); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,7.0); }
 }
-for (const [x,z,s] of [[-11,14.3,1],[7.1,14.3,.9],[7.1,7.5,.8],[-11,7.5,.85]]) tree(x,0,z,s);
+for (const [x,z,s] of [[-11,15.9,1],[7.1,15.9,.9],[7.1,7.5,.8],[-11,7.5,.85]]) tree(x,0,z,s);
 for (const cx of ANNEX.clusters) for (const rz of ANNEX.rows) deskCluster(cx, rz, (cx, side) => {
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : cx === -1.6 ? (side < 0 ? -4.1 : 1.1) : (side < 0 ? 1.1 : 6.1);
   return [aisleX, ANNEX.aisles[String(aisleX)]];
@@ -1483,7 +1483,7 @@ if (window.claude && window.claude.ririLogin) {
     toast('👑 로그인 중…');
     try { await window.claude.ririLogin(pw); } catch (err) { toast('비밀번호가 맞지 않아요'); $('ririPw').value = ''; $('ririPw').focus(); } };
 }
-const MAX_PEOPLE = 30; let joining = false, delArmed = 0;
+const MAX_PEOPLE = 40; let joining = false, delArmed = 0;
 $('joinBtn').onclick = async () => {
   if (!dbMode || !myUid || meId || joining) return;
   if (chars.filter(c => c.id !== RIRI_ID).length >= MAX_PEOPLE) { toast(`자리가 꽉 찼어요 (${MAX_PEOPLE}명)`); return; }
