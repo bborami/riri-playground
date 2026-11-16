@@ -50,6 +50,11 @@
   .bub.shout{font-size:15px;font-weight:700;color:#e0446a;background:#fff3f6}
   .bub.shout:after{border-top-color:#fff3f6}
   .acts{display:flex;gap:7px;margin-top:8px}
+  .sayBox{display:flex;gap:6px;margin-top:9px}
+  .sayBox[hidden]{display:none}
+  .sayBox input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:8px 10px;border-radius:12px;border:1px solid var(--lav);outline:none}
+  .sayBox button{font-family:inherit;font-size:14px;border:none;border-radius:12px;padding:0 12px;background:#fff1b8;cursor:pointer}
+  .bub.said{background:#fffbe6;border:2px solid #ffd36e;font-weight:700;max-width:220px;white-space:normal}
   .acts[hidden]{display:none}
   .acts button{flex:1;font-family:inherit;font-size:13.5px;font-weight:500;border:none;border-radius:14px;padding:9px 6px;cursor:pointer;color:var(--ink);background:#ffe1ea;box-shadow:0 3px 0 rgba(90,60,120,.12)}
   .acts button:first-child{background:#e9e4f2}
@@ -128,6 +133,7 @@
       <form class="renameBox" id="renameBox" hidden><input id="nameIn" maxlength="12" placeholder="새 이름 (최대 12자)" autocomplete="off"><button type="submit">저장</button><button type="button" class="cancel" id="renameCancel">취소</button></form>
       <div class="grid" id="statusGrid"></div>
       <div class="st" id="lockNote" hidden style="margin-top:8px"></div>
+      <form class="sayBox" id="sayBox" hidden><input id="sayIn" maxlength="40" placeholder="💬 말풍선에 할 말 (40자)" autocomplete="off"><button type="submit">말하기</button></form>
       <div class="acts" id="roofActs" hidden><button data-a="smoke">🚬 담타</button><button data-a="shout">📢 소리지르기</button></div>
     </div>
     <div class="sec"><h2>구역별 인원</h2><div class="counts" id="counts"></div></div>
@@ -1065,6 +1071,7 @@ function snapshot(){ return { kind:'snapshot', ver:roster.ver, fresh:roster.fres
 function receive(raw){
   const m = raw && raw.kind ? raw : (raw && raw.data && raw.data.kind ? raw.data : null);
   if (!m || m.from === clientId) return;
+  if (m.kind === 'action' && m.type === 'say') { if (m.ver === roster.ver || dbMode) speak(m.id, m.text, { remote:true, uid:m._uid }); return; }
   if (m.kind === 'action' && (!dbMode || true)) { if (m.ver === roster.ver || dbMode) triggerAction(m.id, m.type, { remote:true }); return; }
   if (dbMode) return;
   if (m.kind === 'hello') { send(snapshot()); return; }
@@ -1322,6 +1329,13 @@ function spawnSmoke(c){
   mesh.position.copy(p); scene.add(mesh); smokes.push({ mesh, life:2.2, v:new THREE.Vector3(rand(-.08,.08)+fwd.x*.15, rand(.25,.4), rand(-.08,.08)+fwd.z*.15) });
 }
 function stepSmoke(dt){ for (let i=smokes.length-1;i>=0;i--){ const s = smokes[i]; s.life -= dt; s.mesh.position.addScaledVector(s.v, dt); s.mesh.scale.multiplyScalar(1 + dt*.9); s.mesh.material.opacity = Math.max(0, s.life/2.2*.75); if (s.life <= 0) { scene.remove(s.mesh); s.mesh.material.dispose(); smokes.splice(i,1); } } }
+function speak(id, text, opts={}){
+  const c = chars.find(c => c.id === id); if (!c) return;
+  text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!text) return;
+  if (opts.remote && dbMode && opts.uid && charOwner[id] && charOwner[id] !== opts.uid) return; // 남의 캐릭터로 말하기 막기
+  say(c, text, 7000, 'said');
+  if (!opts.remote) send({ kind:'action', id, type:'say', text, t:Date.now(), ver:roster.ver });
+}
 function triggerAction(id, type, opts={}){
   const c = chars.find(c => c.id === id); if (!c || c.status !== 'roof' || !['smoke','shout'].includes(type)) return;
   if (c.slot && c.slot.seat) { const free = SLOTS.roof.filter(s => !s.occ && !s.seat); if (free.length) { const from = c.slot; from.occ = null; const s = pick(free); s.occ = c.id;
@@ -1425,6 +1439,7 @@ function renderPanel(full){
   $('renameBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
   $('rerollBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
   $('roofActs').hidden = !sel || sel.status !== 'roof' || !ctl;
+  $('sayBox').hidden = !sel || !ctl || (dbMode && !canWrite);
   $('lockNote').hidden = !sel || ctl;
   $('lockNote').textContent = !canWrite ? '🔒 보기 전용이라 상태를 바꿀 수 없어요' : '🔒 다른 분의 캐릭터라 상태를 바꿀 수 없어요';
   $('regenBtn').hidden = dbMode;
@@ -1449,6 +1464,8 @@ function renderPanel(full){
   }
 }
 let renameFor = null;
+$('sayBox').onsubmit = e => { e.preventDefault(); const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
+  const t = $('sayIn').value; if (!t.trim()) return; speak(sel.id, t); $('sayIn').value = ''; };
 // 리리 비밀번호 로그인 (Firebase 버전에서만)
 if (window.claude && window.claude.ririLogin) {
   const btn = $('ririBtn'); let amRiri = false;

@@ -86,7 +86,7 @@ if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId) {
       snap.docChanges().forEach(ch => {
         if (ch.type !== 'added') return;
         const v = ch.doc.data();
-        (handlers[v.topic] || []).forEach(f => { try { f(v.data); } catch (_) {} });
+        (handlers[v.topic] || []).forEach(f => { try { f(Object.assign({}, v.data, { _uid: v.uid })); } catch (_) {} });
       });
     }, () => {}));
     const emit = async (topic, data) => {
