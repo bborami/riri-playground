@@ -195,6 +195,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // ================================================================ 기본 데이터
+const MOBILE_MQ = matchMedia('(max-width:820px)');
 const STATUSES = [
   { key:'commute', label:'출근중', emoji:'🚌', color:[48,90,80], ic:'#fff3c2', sub:'버스 타고 출근하는 중',
     lines:['지각이다…','버스 꽉 찼네','월요일 싫어…','5분만 더 자고 싶다','기사님 빨리요!'] },
@@ -1101,6 +1102,7 @@ function routeTo(c, zone){
 function nearestNode(p){ let best=null, bd=1e9; for (const k in NODES){ const n = NODES[k]; const d = Math.hypot(n[0]-p.x, n[2]-p.z) + Math.abs(n[1]-p.y)*5; if (d<bd){bd=d;best=k;} } return best; }
 
 function say(c, text, ms=3000, cls=''){
+  if (cls !== 'said' && MOBILE_MQ.matches) return; // 모바일은 직접 말하기만
   if (c.bub) c.bub.remove();
   const b = document.createElement('div'); b.className = 'bub' + (cls ? ' '+cls : ''); b.textContent = text; overlay.appendChild(b);
   c.bub = b; c.bubUntil = performance.now() + ms;
