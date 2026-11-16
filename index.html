@@ -51,6 +51,10 @@
   .bub.shout{font-size:15px;font-weight:700;color:#e0446a;background:#fff3f6}
   .bub.shout:after{border-top-color:#fff3f6}
   .acts{display:flex;gap:7px;margin-top:8px}
+  .deskRow{display:flex;gap:8px;align-items:center;margin-top:9px;font-size:13px}
+  .deskRow[hidden]{display:none}
+  .deskRow span{white-space:nowrap;color:var(--ink)}
+  .deskRow select{flex:1;padding:6px 8px}
   .sayBox{display:flex;gap:6px;margin-top:9px}
   .sayBox[hidden]{display:none}
   .sayBox input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:8px 10px;border-radius:12px;border:1px solid var(--lav);outline:none}
@@ -134,6 +138,7 @@
       <form class="renameBox" id="renameBox" hidden><input id="nameIn" maxlength="12" placeholder="새 이름 (최대 12자)" autocomplete="off"><button type="submit">저장</button><button type="button" class="cancel" id="renameCancel">취소</button></form>
       <div class="grid" id="statusGrid"></div>
       <div class="st" id="lockNote" hidden style="margin-top:8px"></div>
+      <div class="deskRow" id="deskRow" hidden><span>🪑 내 자리</span><select id="deskSel"></select></div>
       <form class="sayBox" id="sayBox" hidden><input id="sayIn" maxlength="40" placeholder="💬 말풍선에 할 말 (40자)" autocomplete="off"><button type="submit">말하기</button></form>
       <div class="acts" id="roofActs" hidden><button data-a="smoke">🚬 담타</button><button data-a="shout">📢 소리지르기</button></div>
     </div>
@@ -969,7 +974,7 @@ function makeRoster(n=10){
   return list;
 }
 function loadLocal(){ try { const r = JSON.parse(localStorage.getItem(LS_KEY)); if (r && Array.isArray(r.list) && r.list.length) return r; } catch(e){} return null; }
-function serialList(){ return chars.map(c => ({ id:c.id, name:c.name, nt:c.nt||0, look:c.look, status:c.status, st:c.st })); }
+function serialList(){ return chars.map(c => ({ id:c.id, name:c.name, nt:c.nt||0, look:c.look, status:c.status, st:c.st, desk:c.deskPref })); }
 function saveLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ ver:roster.ver, fresh:false, list:serialList() })); } catch(e){} }
 
 const overlay = document.getElementById('overlay');
@@ -977,7 +982,7 @@ const charGroup = new THREE.Group(); scene.add(charGroup);
 
 function freeSlot(c){ if (c.slot) { releaseCat(c.slot); c.slot.occ = null; c.slot = null; } c.action = null; }
 function claimSlot(c, zone){
-  if (zone === 'work') { const s = SLOTS.work[c.deskIdx]; s.occ = c.id; return s; }
+  if (zone === 'work' && SLOTS.work[c.deskIdx]) { const s = SLOTS.work[c.deskIdx]; s.occ = c.id; return s; }
   const mine = SLOTS[zone].find(s => s.only === c.id);
   if (mine) { mine.occ = c.id; return mine; }
   const free = SLOTS[zone].filter(s => !s.occ && !s.only);
@@ -999,12 +1004,13 @@ function buildChars(list){
     m.root.traverse(o => { o.userData.charId = d.id; });
     charGroup.add(m.root);
     const tag = document.createElement('div'); tag.className = 'tag'; overlay.appendChild(tag);
-    const c = { ...d, m, tag, deskIdx: i, path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
+    const c = { ...d, m, tag, deskIdx: -1, deskPref: Number.isInteger(d.desk) && d.desk >= 0 && d.desk < SLOTS.work.length ? d.desk : -1, path:[], pose:'idle', t0:Math.random()*10, cur:{}, bub:null, bubUntil:0, nextShuffle: rand(12,30) };
     return c;
   });
   // 책상 중복 방지
   const used = new Set();
-  for (const c of chars) { while (used.has(c.deskIdx)) c.deskIdx = (c.deskIdx+1) % SLOTS.work.length; used.add(c.deskIdx); }
+  for (const c of chars) if (c.deskPref >= 0 && !used.has(c.deskPref)) { c.deskIdx = c.deskPref; used.add(c.deskPref); }   // 고른 자리 먼저
+  let nx = 0; for (const c of chars) if (c.deskIdx < 0) { while (used.has(nx)) nx++; c.deskIdx = nx; used.add(nx); }      // 나머지는 앞자리부터
   for (const c of chars) { const s = claimSlot(c, c.status); placeAt(c, s); }
   if (!chars.find(c => c.id === selectedId)) selectedId = null;
   if (!chars.find(c => c.id === meId)) meId = null;
@@ -1446,6 +1452,12 @@ function renderPanel(full){
   $('rerollBtn').hidden = !sel || sel.id === RIRI_ID || !ctl;
   $('roofActs').hidden = !sel || sel.status !== 'roof' || !ctl;
   $('sayBox').hidden = !sel || !ctl || (dbMode && !canWrite);
+  $('deskRow').hidden = !sel || !ctl || (dbMode && !canWrite);
+  if (sel && ctl) { const dk = sel.id + '|' + chars.map(c => c.id + ':' + c.deskPref + ':' + c.deskIdx + ':' + c.name).join(',');
+    if ($('deskSel')._k !== dk) { $('deskSel')._k = dk;
+      $('deskSel').innerHTML = `<option value="-1">자동 (빈자리)</option>` + SLOTS.work.map((_, i) => { const by = chars.find(c => c.id !== sel.id && c.deskPref === i); const at = chars.find(c => c.id !== sel.id && c.deskIdx === i);
+        return `<option value="${i}" ${by ? 'disabled' : ''}>${deskName(i)}${by ? ` · ${esc(by.name)} 자리` : at ? ` · 지금 ${esc(at.name)}` : ''}</option>`; }).join('');
+      $('deskSel').value = String(sel.deskPref >= 0 ? sel.deskPref : -1); } }
   $('lockNote').hidden = !sel || ctl;
   $('lockNote').textContent = !canWrite ? '🔒 보기 전용이라 상태를 바꿀 수 없어요' : '🔒 다른 분의 캐릭터라 상태를 바꿀 수 없어요';
   $('regenBtn').hidden = dbMode;
@@ -1470,6 +1482,23 @@ function renderPanel(full){
   }
 }
 let renameFor = null;
+function deskName(i){ return i < 12 ? `본관 ${i+1}번` : `별관 ${i-11}번`; }
+function moveDesk(c, idx){
+  if (!SLOTS.work[idx] || c.deskIdx === idx) return;
+  const other = chars.find(x => x !== c && x.deskIdx === idx), old = c.deskIdx;
+  if (other) other.deskIdx = old;
+  c.deskIdx = idx;
+  if (c.status === 'work') routeTo(c, 'work');
+  if (other && other.status === 'work') routeTo(other, 'work');
+  if (c.status === 'work') SLOTS.work[idx].occ = c.id;
+}
+$('deskSel').onchange = () => {
+  const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
+  const v = +$('deskSel').value; if (v >= 0 && chars.find(c => c !== sel && c.deskPref === v)) { toast('다른 분이 고른 자리예요'); renderPanel(true); return; }
+  sel.deskPref = v; if (v >= 0) { moveDesk(sel, v); toast(`🪑 ${sel.name} → ${deskName(v)}`); }
+  if (dbMode) dbWrite(sel.id, { desk:v }); else { saveLocal(); send(snapshot()); }
+  renderPanel(true);
+};
 $('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
 $('sayBox').onsubmit = e => { e.preventDefault(); const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
   const t = $('sayIn').value; if (!t.trim()) return; speak(sel.id, t); $('sayIn').value = ''; };
@@ -1620,7 +1649,7 @@ function frame(now){
 function docToChar(d){
   const v = d.data && d.data(); if (!v || typeof v !== 'object') return null;
   if (typeof v.name !== 'string' || !SBYKEY[v.status] || !v.look || typeof v.look !== 'object') return null;
-  return { id:d.id, name:String(v.name).slice(0,12), nt:+v.nt||0, look: d.id === RIRI_ID ? RIRI_LOOK : sanitizeLook(v.look), status:v.status, st:+v.st||0, owner: typeof v.owner === 'string' ? v.owner : '', order:+v.order||0 };
+  return { id:d.id, name:String(v.name).slice(0,12), nt:+v.nt||0, look: d.id === RIRI_ID ? RIRI_LOOK : sanitizeLook(v.look), status:v.status, st:+v.st||0, owner: typeof v.owner === 'string' ? v.owner : '', order:+v.order||0, desk: Number.isInteger(v.desk) ? v.desk : -1 };
 }
 function sanitizeLook(L){ // 다른 사람이 쓴 데이터: 모르는 값은 기본값으로
   const def = makeLook(); const out = {};
@@ -1654,12 +1683,13 @@ function applyDbSnapshot(snap){
   if (first) selectedId = meId;
   if (!dbMode || sig !== cur) {
     dbMode = true; roster = { ver:1, fresh:false, list };
-    buildChars(list.map(d => ({ id:d.id, name:d.name, nt:d.nt, look:d.look, status:d.status, st:d.st })));
+    buildChars(list.map(d => ({ id:d.id, name:d.name, nt:d.nt, look:d.look, status:d.status, st:d.st, desk:d.desk })));
   } else {
     for (const d of list) { const c = chars.find(x => x.id === d.id); if (!c) continue;
       if (d.st > c.st) setStatus(d.id, d.status, { remote:true, t:d.st });
       if (d.nt > (c.nt||0)) setName(d.id, d.name, { remote:true, t:d.nt });
-      if (d.id !== RIRI_ID && JSON.stringify(d.look) !== JSON.stringify(c.look)) swapLook(c, d.look); }
+      if (d.id !== RIRI_ID && JSON.stringify(d.look) !== JSON.stringify(c.look)) swapLook(c, d.look);
+      if (d.desk !== c.deskPref) { c.deskPref = d.desk; if (d.desk >= 0) moveDesk(c, d.desk); } }
   }
   meId = mine ? mine.id : null;
   if (meId && !selectedId) selectedId = meId;
