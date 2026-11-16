@@ -32,6 +32,7 @@
   .title{position:absolute;left:18px;top:16px;background:var(--panel);backdrop-filter:blur(6px);border-radius:20px;padding:10px 18px;box-shadow:0 8px 24px rgba(160,120,200,.22);pointer-events:none}
   .title h1{margin:0;font-size:22px;font-weight:700}
   .title p{margin:2px 0 0;font-size:12.5px;color:var(--sub)}
+  .title .hint{margin-top:4px;color:#b07aa8;font-weight:700}
   .conn{position:absolute;right:16px;top:16px;background:var(--panel);border-radius:14px;padding:7px 12px;font-size:12.5px;box-shadow:0 6px 18px rgba(160,120,200,.2);display:flex;gap:6px;align-items:center}
   .dot{width:8px;height:8px;border-radius:50%;background:#cbbfd8;display:inline-block}
   .dot.on{background:#5fcf8f;box-shadow:0 0 0 3px rgba(95,207,143,.25)}
@@ -121,7 +122,7 @@
   <div id="stage">
     <div id="loading">사무실 짓는 중…</div>
     <div id="overlay"></div>
-    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p></div>
+    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p></div>
     <div class="conn"><span class="dot" id="connDot"></span><span id="connText">혼자 보는 중</span></div>
     <div id="catMenu" hidden><div class="cn">🐾</div><button data-act="pet">🖐️ 쓰다듬기</button><button data-act="churu">🍡 츄르 주기</button><button data-act="play">🪶 놀아주기</button><span class="x">✕</span></div>
     <div id="toasts"></div>
@@ -141,6 +142,7 @@
     <form class="renameBox" id="ririBox" hidden style="padding:8px 12px 0"><input id="ririPw" type="password" placeholder="리리 비밀번호" autocomplete="current-password"><button type="submit">로그인</button><button type="button" class="cancel" id="ririCancel">취소</button></form>
     <div class="foot">
       <button id="ririBtn" hidden>👑 리리 로그인</button>
+      <button id="liteBtn">🪶 가볍게 보기</button>
       <button id="simBtn">🤖 자동 시뮬레이션</button>
       <button id="regenBtn">🎲 새로 뽑기</button>
       <button id="delBtn" hidden>🗑 캐릭터 지우기</button>
@@ -1366,16 +1368,20 @@ for (const z of STATUSES) {
   overlay.appendChild(el); zoneEls[z.key] = el;
 }
 const v3 = new THREE.Vector3();
-function toScreen(x,y,z){ v3.set(x,y,z).project(camera); const r = renderer.domElement.getBoundingClientRect(); return [(v3.x*.5+.5)*r.width, (-v3.y*.5+.5)*r.height, v3.z]; }
-function placeEl(el, x,y,z){ const [sx,sy,sz] = toScreen(x,y,z); if (sz > 1) { el.style.display='none'; return; } el.style.display=''; el.style.left = sx+'px'; el.style.top = sy+'px'; }
+let RECT = null;
+function toScreen(x,y,z){ v3.set(x,y,z).project(camera); const r = RECT || (RECT = renderer.domElement.getBoundingClientRect()); return [(v3.x*.5+.5)*r.width, (-v3.y*.5+.5)*r.height, v3.z]; }
+function setText(el, t){ if (el._t !== t) { el.textContent = t; el._t = t; } }
+function placeEl(el, x,y,z){ const [sx,sy,sz] = toScreen(x,y,z); if (sz > 1) { if (el._d !== 'none') { el.style.display='none'; el._d = 'none'; } return; } if (el._d !== '') { el.style.display=''; el._d = ''; }
+  const L = Math.round(sx), T = Math.round(sy); if (el._x !== L || el._y !== T) { el.style.transform = ''; el.style.left = L+'px'; el.style.top = T+'px'; el._x = L; el._y = T; } }
 function updateOverlay(now, dt){
+  RECT = renderer.domElement.getBoundingClientRect();
   const counts = countByStatus();
-  for (const z of STATUSES) { const [x,y,zz] = ZONE_ANCHORS[z.key]; placeEl(zoneEls[z.key], x,y,zz); zoneEls[z.key].querySelector('small').textContent = `${counts[z.key]||0}명 · ${z.sub}`; }
+  for (const z of STATUSES) { const [x,y,zz] = ZONE_ANCHORS[z.key]; placeEl(zoneEls[z.key], x,y,zz); const sm = zoneEls[z.key]._sm || (zoneEls[z.key]._sm = zoneEls[z.key].querySelector('small')); setText(sm, `${counts[z.key]||0}명 · ${z.sub}`); }
   for (const c of chars) {
     const p = c.m.root.position, h = c.pose==='lie' ? 1.0 : c.pose==='sleep' ? .7 : 1.55*c.look.scale;
     const vis = c.m.root.visible;
-    c.tag.style.display = vis ? '' : 'none';
-    if (vis) { placeEl(c.tag, p.x, p.y - .05, p.z); c.tag.textContent = (c.id===RIRI_ID?'👑 ':c.id===meId?'⭐ ':'') + c.name; c.tag.classList.toggle('me', c.id===meId); }
+    if (!vis) { if (c.tag._d !== 'none') { c.tag.style.display = 'none'; c.tag._d = 'none'; } }
+    else { placeEl(c.tag, p.x, p.y - .05, p.z); setText(c.tag, (c.id===RIRI_ID?'👑 ':c.id===meId?'⭐ ':'') + c.name); const me = c.id===meId; if (c.tag._me !== me) { c.tag.classList.toggle('me', me); c.tag._me = me; } }
     if (c.bub) { if (now > c.bubUntil) { c.bub.remove(); c.bub = null; } else placeEl(c.bub, p.x, p.y + (vis ? h + .25 : 1.8), p.z); }
   }
   for (const cat of cats) {
@@ -1464,6 +1470,7 @@ function renderPanel(full){
   }
 }
 let renameFor = null;
+$('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
 $('sayBox').onsubmit = e => { e.preventDefault(); const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
   const t = $('sayIn').value; if (!t.trim()) return; speak(sel.id, t); $('sayIn').value = ''; };
 // 리리 비밀번호 로그인 (Firebase 버전에서만)
@@ -1576,8 +1583,28 @@ function resize(){ const r = stage.getBoundingClientRect(); renderer.setSize(r.w
   camera.fov = r.width/r.height < 1.1 ? 48 : 32; camera.updateProjectionMatrix(); }
 window.addEventListener('resize', resize);
 let last = performance.now();
+// ---- 가볍게 보기 (느린 컴퓨터용): 그림자 끄기 + 해상도 낮추기 + 30fps
+const LITE_KEY = 'chongmu-office-lite';
+let lite = false, liteChosen = null, lastDraw = 0, perfN = 0, perfSum = 0, perfDone = false;
+try { liteChosen = localStorage.getItem(LITE_KEY); } catch(e){}
+function setLite(on, why){
+  lite = on;
+  renderer.setPixelRatio(on ? 1 : Math.min(window.devicePixelRatio||1, 2)); resize();
+  sun.castShadow = !on; renderer.shadowMap.enabled = !on;
+  scene.traverse(o => { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.needsUpdate = true); } });
+  const b = document.getElementById('liteBtn'); if (b) { b.textContent = on ? '🪶 가볍게 ON' : '🪶 가볍게 보기'; b.classList.toggle('on', on); }
+  if (why) toast(why);
+}
+if (liteChosen === '1') setLite(true);
 function frame(now){
-  const dt = Math.min(.05, (now-last)/1000); last = now; const t = now/1000;
+  if (lite && now - lastDraw < 31) { requestAnimationFrame(frame); return; }
+  lastDraw = now;
+  const rawDt = (now-last)/1000;
+  if (!perfDone && liteChosen === null && document.visibilityState === 'visible' && now > 4000 && rawDt > 0 && rawDt < .5) {
+    perfN++; perfSum += rawDt;
+    if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/38) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
+  }
+  const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
   stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepSmoke(dt);
   for (const s of SLOTS.shred) if (s.shredder) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); const pp = s.shredder.paper; pp.visible = !!on; if (on) { pp.position.y = 1.15 - ((t*.5 + s.shredder.x) % 1)*.35; } s.shredder.led.material.color.setHex(on ? 0xff7a7a : 0x6fe0a0); s.shredder.led.material.emissive.setHex(on ? 0xff7a7a : 0x6fe0a0); }
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
