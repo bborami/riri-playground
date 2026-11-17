@@ -473,8 +473,7 @@ function makeBus(body, stripe, sign){ // 2층 버스: 아래층 5줄 + 위층(�
     B.seats.push({ local:new THREE.Vector3(x, fy+.06, z+.05), seat:.38, pose:'ride', ry:0, pos:[0,0,0], via:'BS1', approach:[], bus:B, deck: fy === U ? 1 : 0, occ:null }); }
   g.traverse(o => { o.userData.bus = B; }); world.add(g); return B;
 }
-const BUSES = [makeBus(0xffd98a, 0x9fe3c4, 0xff8fa8), makeBus(0xffc2d6, 0xc9b6ff, 0x7fd0ff)];
-BUSES[1].s = BUS_TOTAL / 2;
+const BUSES = [makeBus(0xffd98a, 0x9fe3c4, 0xff8fa8)]; // 2층 버스 1대 (20명)
 const BUS = BUSES[0];
 function busAt(s){ s = ((s % BUS_TOTAL) + BUS_TOTAL) % BUS_TOTAL; let i = 1; while (i < BUSLOOP.length-1 && BUSLOOP[i].s < s) i++;
   const a = BUSLOOP[i-1], b = BUSLOOP[i], t = (s - a.s) / Math.max(1e-6, b.s - a.s); return { x:a.x+(b.x-a.x)*t, z:a.z+(b.z-a.z)*t, ry:Math.atan2(b.x-a.x, b.z-a.z) }; }
@@ -1945,19 +1944,19 @@ function resize(){ const r = stage.getBoundingClientRect(); renderer.setSize(r.w
   camera.fov = r.width/r.height < 1.1 ? 48 : 32; camera.updateProjectionMatrix(); }
 window.addEventListener('resize', resize);
 let last = performance.now();
-// ---- 가볍게 보기 (느린 컴퓨터용): 그림자 끄기 + 해상도 낮추기 + 30fps
+// ---- 가볍게 보기 (느린 컴퓨터용): 그림자 끄기 + 해상도 75% + 24fps + 이름표 갱신 절반
 const LITE_KEY = 'chongmu-office-lite';
-let lite = false, liteChosen = null, lastDraw = 0, perfN = 0, perfSum = 0, perfDone = false;
+let lite = false, liteChosen = null, lastDraw = 0, ovN = 0, ovDt = 0, perfN = 0, perfSum = 0, perfDone = false;
 try { liteChosen = localStorage.getItem(LITE_KEY); } catch(e){}
 function setLite(on, why){
   lite = on;
-  renderer.setPixelRatio(on ? 1 : Math.min(window.devicePixelRatio||1, 2)); resize();
+  renderer.setPixelRatio(on ? .75 : Math.min(window.devicePixelRatio||1, 2)); resize();
   sun.castShadow = !on; renderer.shadowMap.enabled = !on;
   scene.traverse(o => { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.needsUpdate = true); } });
   const b = document.getElementById('liteBtn'); if (b) { b.textContent = on ? '🪶 가볍게 ON' : '🪶 가볍게 보기'; b.classList.toggle('on', on); }
   if (why) toast(why);
 }
-if (liteChosen === '1') setLite(true);
+if (liteChosen === '1' || (liteChosen === null && MOBILE_MQ.matches)) setLite(true); // 폰은 처음부터 가볍게
 const DAYC = { hs:new THREE.Color(0xffffff), hg:new THREE.Color(0xf1d3ea), sc:new THREE.Color(0xfff6f0) }, NITC = { hs:new THREE.Color(0x7f86d8), hg:new THREE.Color(0x2c2346), sc:new THREE.Color(0xa9b8ff) };
 function applyNight(dt){
   NIGHT.v += (NIGHT.target - NIGHT.v) * Math.min(1, dt*1.2); if (Math.abs(NIGHT.v - NIGHT.target) < .002) NIGHT.v = NIGHT.target;
@@ -1967,12 +1966,12 @@ function applyNight(dt){
   document.getElementById('nightSky').style.opacity = n.toFixed(3);
 }
 function frame(now){
-  if (lite && now - lastDraw < 31) { requestAnimationFrame(frame); return; }
+  if (lite && now - lastDraw < 41) { requestAnimationFrame(frame); return; }
   lastDraw = now;
   const rawDt = (now-last)/1000;
-  if (!perfDone && liteChosen === null && document.visibilityState === 'visible' && now > 4000 && rawDt > 0 && rawDt < .5) {
+  if (!perfDone && !lite && liteChosen === null && document.visibilityState === 'visible' && now > 4000 && rawDt > 0 && rawDt < .5) {
     perfN++; perfSum += rawDt;
-    if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/38) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
+    if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/45) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
   }
   const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
   LED.tex.offset.x = (LED.tex.offset.x + dt*LED.pxPerSec/LED.cv.width) % 1; applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
@@ -1984,7 +1983,7 @@ function frame(now){
   if (isMobile()) renderZoneBar();
   controls.update();
   renderer.render(scene, camera);
-  updateOverlay(now, dt);
+  ovDt += dt; if (!lite || (++ovN & 1) === 0 || camFly) { updateOverlay(now, ovDt); ovDt = 0; }
   requestAnimationFrame(frame);
 }
 
