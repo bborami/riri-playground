@@ -1508,7 +1508,7 @@ function stepHamster(t, dt){
     if (H.mode === 'wheel' && chance(.5)) hamSay(pick(['다다다다닷!','쳇바퀴 최고햄!','오늘도 운동 햄찍!']));
     if (H.mode === 'eat' && chance(.5)) hamSay(pick(['해바라기씨 냠냠','볼주머니 가득!','오물오물…'])); }
   let tx, tz, ry, y = .12;
-  if (H.mode === 'wheel') { tx = cx - .32; tz = cz; ry = Math.PI/2; H.spin += dt*9; y = .14; }
+  if (H.mode === 'wheel') { tx = cx - .32; tz = cz; ry = Math.PI; /* 바퀴 굴러가는 방향(-z)을 보고 달리기 */ H.spin += dt*9; y = .14; }
   else if (H.mode === 'eat') { tx = cx + .35; tz = cz + .1; ry = 0; H.spin += dt*.5; }
   else { tx = cx + .42; tz = cz + .02; ry = Math.PI; H.spin += dt*.3; }
   if (H.visit) { tx = cx + (H.visit.side > 0 ? .5 : -.5); tz = cz + .3*H.visit.side*0 + (H.visit.front ? .3 : 0); ry = Math.atan2(H.visit.cat.m.root.position.x - tx, H.visit.cat.m.root.position.z - tz); }
