@@ -636,6 +636,8 @@ const ham = (() => {
   const tag = null;
   return { g, body, head, feet, armL, armR, wheel, WR, cage, tag, bub:null, bubUntil:0, mode:'wheel', modeT:rand(8,14), spin:0, visit:null, visitT:rand(10,20), pos:new THREE.Vector3() };
 })();
+const GA_URL = 'https://xn--oy2b25tftanujew0m.com/';
+function openGA(){ const w = window.open(GA_URL, '_blank', 'noopener'); if (!w) toast('🐹 우리의GA: ' + GA_URL); }
 function hamSay(text, ms=2200){ if (ham.bub) ham.bub.remove(); if (MOBILE_MQ.matches) return; const b = document.createElement('div'); b.className = 'bub'; b.textContent = text; overlay.appendChild(b); ham.bub = b; ham.bubUntil = performance.now() + ms; }
 
 // --- 연차섬
@@ -1624,7 +1626,7 @@ function updateOverlay(now, dt){
     else if (cat.bub && now > cat.bubUntil) { cat.bub.remove(); cat.bub = null; }
     if (cat.bub) placeEl(cat.bub, p.x, p.y + .95, p.z);
   }
-  { if (!ham.tag) { ham.tag = document.createElement('div'); ham.tag.className = 'tag cat'; ham.tag.textContent = '🐹 햄찍이'; overlay.appendChild(ham.tag); }
+  { if (!ham.tag) { ham.tag = document.createElement('div'); ham.tag.className = 'tag cat'; ham.tag.textContent = '🐹 햄찍이'; ham.tag.title = '눌러서 우리의GA 가기'; ham.tag.style.cursor = 'pointer'; ham.tag.addEventListener('click', openGA); overlay.appendChild(ham.tag); }
     const p = ham.g.position; placeEl(ham.tag, p.x, p.y - .05, p.z); if (ham.bub) { if (now > ham.bubUntil) { ham.bub.remove(); ham.bub = null; } else placeEl(ham.bub, p.x, p.y + .55, p.z); } }
   for (let i=hearts.length-1;i>=0;i--){ const h = hearts[i]; h.life -= dt; h.pos.y += dt*.6; if (h.life<=0){ h.el.remove(); hearts.splice(i,1); continue; } placeEl(h.el, h.pos.x,h.pos.y,h.pos.z); h.el.style.opacity = Math.min(1,h.life*1.4); }
 }
@@ -1833,7 +1835,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (!downAt || Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5) return;
   const h = hit(e);
   if (h && h.cat) { openCatMenu(h.cat, e.clientX, e.clientY); return; }
-  if (h && h.ham) { hamSay(pick(['햄찍!','쓰다듬어줘서 고마워햄','해바라기씨 있어요?','오늘도 화이팅햄!']), 2400); for (let i=0;i<4;i++) spawnHeart(ham.g.position.clone().add(new THREE.Vector3(rand(-.2,.2),.5+rand(0,.2),rand(-.2,.2))), '💗'); return; }
+  if (h && h.ham) { openGA(); hamSay('우리의GA로 출발햄! 🐹', 2400); for (let i=0;i<4;i++) spawnHeart(ham.g.position.clone().add(new THREE.Vector3(rand(-.2,.2),.5+rand(0,.2),rand(-.2,.2))), '💗'); return; }
   closeCatMenu();
   if (h && h.char) { selectedId = h.char; renderPanel(); }
   if (h && h.bus) { // 버스 1층/2층 클릭 → 내 캐릭터 자리 옮기기
