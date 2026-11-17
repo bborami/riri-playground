@@ -87,6 +87,12 @@
   @keyframes pop2{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
   #catMenu{position:absolute;width:160px;background:#fff;border-radius:18px;padding:10px;box-shadow:0 10px 26px rgba(150,110,190,.3);display:flex;flex-direction:column;gap:6px;animation:pop2 .25s cubic-bezier(.3,1.6,.5,1)}
   #catMenu[hidden]{display:none}
+  #hamMenu{position:absolute;width:196px;background:#fff;border-radius:18px;padding:10px;box-shadow:0 10px 26px rgba(150,110,190,.3);display:flex;flex-direction:column;gap:6px;animation:pop2 .25s cubic-bezier(.3,1.6,.5,1);z-index:6}
+  #hamMenu[hidden]{display:none}
+  #hamMenu .cn{font-size:14px;font-weight:700;text-align:center}
+  #hamMenu button{font-family:inherit;font-size:13.5px;border:none;border-radius:12px;padding:8px 6px;cursor:pointer;background:#ffe7c7;color:var(--ink)}
+  #hamMenu button[data-h=ga]{background:linear-gradient(135deg,#d9c6ff,#ffc9de);font-weight:700}
+  #hamMenu .x{position:absolute;right:10px;top:6px;cursor:pointer;color:#a99bb8;font-size:13px}
   #catMenu .cn{font-size:14px;font-weight:700;text-align:center}
   #catMenu button{font-family:inherit;font-size:13.5px;border:none;border-radius:12px;padding:8px 6px;cursor:pointer;background:#ffe7c7;color:var(--ink)}
   #catMenu button[data-act=churu]{background:#ffd6e3}
@@ -156,6 +162,7 @@
     <div class="workclock"><div class="workbar" id="workBar"><span>09:00</span><div class="wb"><i id="wbFill"></i><em id="wbPct"></em></div><span>18:00</span></div><p class="clock" id="offClock"></p></div>
     <div class="conn"><span class="dot" id="connDot"></span><span id="connText">혼자 보는 중</span></div>
     <div id="catMenu" hidden><div class="cn">🐾</div><button data-act="pet">🖐️ 쓰다듬기</button><button data-act="churu">🍡 츄르 주기</button><button data-act="play">🪶 놀아주기</button><span class="x">✕</span></div>
+    <div id="hamMenu" hidden><div class="cn">🐹 햄찍이</div><button data-h="ga">🚀 우리의GA로 출발햄!</button><button data-h="pet">🖐️ 쓰다듬기</button><button data-h="seed">🌻 해바라기씨 주기</button><span class="x">✕</span></div>
     <div id="toasts"></div>
   </div>
   <aside id="panel">
@@ -1626,7 +1633,7 @@ function updateOverlay(now, dt){
     else if (cat.bub && now > cat.bubUntil) { cat.bub.remove(); cat.bub = null; }
     if (cat.bub) placeEl(cat.bub, p.x, p.y + .95, p.z);
   }
-  { if (!ham.tag) { ham.tag = document.createElement('div'); ham.tag.className = 'tag cat'; ham.tag.textContent = '🐹 햄찍이'; ham.tag.title = '눌러서 우리의GA 가기'; ham.tag.style.cursor = 'pointer'; ham.tag.addEventListener('click', openGA); overlay.appendChild(ham.tag); }
+  { if (!ham.tag) { ham.tag = document.createElement('div'); ham.tag.className = 'tag cat'; ham.tag.textContent = '🐹 햄찍이'; ham.tag.title = '햄찍이 메뉴'; ham.tag.style.cursor = 'pointer'; ham.tag.addEventListener('click', e => openHamMenu(e.clientX, e.clientY)); overlay.appendChild(ham.tag); }
     const p = ham.g.position; placeEl(ham.tag, p.x, p.y - .05, p.z); if (ham.bub) { if (now > ham.bubUntil) { ham.bub.remove(); ham.bub = null; } else placeEl(ham.bub, p.x, p.y + .55, p.z); } }
   for (let i=hearts.length-1;i>=0;i--){ const h = hearts[i]; h.life -= dt; h.pos.y += dt*.6; if (h.life<=0){ h.el.remove(); hearts.splice(i,1); continue; } placeEl(h.el, h.pos.x,h.pos.y,h.pos.z); h.el.style.opacity = Math.min(1,h.life*1.4); }
 }
@@ -1835,8 +1842,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (!downAt || Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5) return;
   const h = hit(e);
   if (h && h.cat) { openCatMenu(h.cat, e.clientX, e.clientY); return; }
-  if (h && h.ham) { openGA(); hamSay('우리의GA로 출발햄! 🐹', 2400); for (let i=0;i<4;i++) spawnHeart(ham.g.position.clone().add(new THREE.Vector3(rand(-.2,.2),.5+rand(0,.2),rand(-.2,.2))), '💗'); return; }
-  closeCatMenu();
+  if (h && h.ham) { openHamMenu(e.clientX, e.clientY); return; }
+  closeCatMenu(); closeHamMenu();
   if (h && h.char) { selectedId = h.char; renderPanel(); }
   if (h && h.bus) { // 버스 1층/2층 클릭 → 내 캐릭터 자리 옮기기
     const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
@@ -1847,6 +1854,14 @@ renderer.domElement.addEventListener('pointerup', e => {
 renderer.domElement.addEventListener('pointermove', e => { if (e.buttons) return; const h = hit(e); renderer.domElement.style.cursor = h ? (h.cat ? 'grab' : 'pointer') : 'default'; });
 let menuCat = null;
 function openCatMenu(cat, cx, cy){ menuCat = cat; const m = $('catMenu'), r = stage.getBoundingClientRect(); m.querySelector('.cn').textContent = '🐾 ' + cat.coat.name; m.style.left = clamp(cx-r.left-80, 8, r.width-170)+'px'; m.style.top = clamp(cy-r.top-120, 8, r.height-120)+'px'; m.hidden = false; }
+function openHamMenu(cx, cy){ closeCatMenu(); const m = $('hamMenu'), r = stage.getBoundingClientRect(); m.style.left = clamp(cx-r.left-98, 8, r.width-206)+'px'; m.style.top = clamp(cy-r.top-150, 8, r.height-150)+'px'; m.hidden = false; hamSay('햄찍?', 1500); }
+function closeHamMenu(){ $('hamMenu').hidden = true; }
+function hamHearts(emo){ for (let i=0;i<4;i++) spawnHeart(ham.g.position.clone().add(new THREE.Vector3(rand(-.2,.2),.5+rand(0,.2),rand(-.2,.2))), emo); }
+document.querySelectorAll('#hamMenu [data-h]').forEach(b => b.onclick = () => { const k = b.dataset.h; closeHamMenu();
+  if (k === 'ga') { hamSay('우리의GA로 출발햄! 🐹', 2400); hamHearts('✨'); openGA(); }
+  else if (k === 'pet') { hamSay(pick(['헤헤 간지러워햄','쓰다듬어줘서 고마워햄','기분 좋아햄~']), 2400); hamHearts('💗'); }
+  else { ham.mode = 'eat'; ham.modeT = 8; hamSay(pick(['해바라기씨다!!','볼주머니 가득 햄!','냠냠 최고햄']), 2400); hamHearts('🌻'); } });
+document.querySelector('#hamMenu .x').onclick = closeHamMenu;
 function closeCatMenu(){ $('catMenu').hidden = true; menuCat = null; }
 document.querySelectorAll('#catMenu [data-act]').forEach(b => b.onclick = () => {
   if (!menuCat) return; const cat = menuCat, type = b.dataset.act;
