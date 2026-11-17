@@ -769,7 +769,7 @@ const LED = (() => {
   const FONT = 'bold 76px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
   function draw(t){ if (t === text) return; text = t;
     ctx.font = FONT; const parts0 = t.split(' ✦ '); let need = 60; for (const p of parts0) need += ctx.measureText(p).width + 96;
-    const want = Math.min(8192, Math.max(2048, Math.ceil(need/256)*256 + 300));
+    const want = Math.min(8192, Math.max(1280, Math.ceil(need/128)*128 + 160));
     if (cv.width !== want) { cv.width = want; tex.dispose(); tex.repeat.x = (W/H)*(cv.height/cv.width); }
     ctx.fillStyle = '#17122a'; ctx.fillRect(0,0,cv.width,cv.height);
     ctx.font = FONT; ctx.textBaseline = 'middle';
@@ -793,7 +793,8 @@ function ledMessage(){
   const time = wd === 0 || wd === 6 ? '주말이에요 🎉' : sec < 9*3600 ? '좋은 아침! 오늘도 화이팅' : left > 0 ? `퇴근까지 ${Math.floor(left/3600)}시간 ${Math.floor(left/60)%60}분` : '퇴근 시간! 오늘도 수고했어요';
   const six = typeof sixAM === 'function' ? sixAM() : 0;
   const msgs = BOARD.filter(m => m.t >= six && m.text).sort((a,b) => b.t - a.t).slice(0, 8).map(m => `💬 ${m.name || '손님'}: ${m.text}`);
-  return [...msgs, `총무 오피스`, time, `업무중 ${c.work||0}명`, `탕비실 ${c.pantry||0}명`, `월루중 ${c.loaf||0}명`, '햄찍이는 쳇바퀴 중', ''].join(' ✦ ');
+  if (msgs.length) return [...msgs, ''].join(' ✦ '); // 글이 있으면 그 글만
+  return [`총무 오피스`, time, `업무중 ${c.work||0}명`, `탕비실 ${c.pantry||0}명`, `월루중 ${c.loaf||0}명`, '햄찍이는 쳇바퀴 중', ''].join(' ✦ ');
 }
 
 // ================================================================ 길 찾기 그래프
