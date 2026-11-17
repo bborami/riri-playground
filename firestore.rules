@@ -48,6 +48,19 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // 옥상 전광판: 한 사람당 글 하나, 10분에 한 번만 다시 쓸 수 있어요
+    match /board/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['text', 'name', 't'])
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 30
+        && request.resource.data.name is string && request.resource.data.name.size() <= 12
+        && request.resource.data.t is number
+        && request.resource.data.t > request.time.toMillis() - 120000 && request.resource.data.t < request.time.toMillis() + 120000
+        && (resource == null || request.time.toMillis() > resource.data.t + 540000);
+      allow delete: if isOwner() || (signedIn() && uid == request.auth.uid);
+    }
+
     // 접속자 수
     match /presence/{uid} {
       allow read: if signedIn();

@@ -65,6 +65,11 @@
   .deskRow select{flex:1;padding:6px 8px}
   .sayBox{display:flex;gap:6px;margin-top:9px}
   .sayBox[hidden]{display:none}
+  .ledBox button{background:linear-gradient(135deg,#d9c6ff,#ffc9de);font-weight:700}
+  .ledBox button:disabled{opacity:.5;cursor:default}
+  .ledNote{font-size:11.5px;color:var(--sub,#8a80a0);margin-top:4px}
+  .ledNote[hidden]{display:none}
+  .ledNote button{font-family:inherit;font-size:11px;border:none;border-radius:8px;padding:2px 8px;margin-left:6px;background:#ffd3dc;cursor:pointer}
   .sayBox input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:8px 10px;border-radius:12px;border:1px solid var(--lav);outline:none}
   .sayBox button{font-family:inherit;font-size:14px;border:none;border-radius:12px;padding:0 12px;background:#fff1b8;cursor:pointer}
   .bub{pointer-events:auto;cursor:default;transition:opacity .15s}
@@ -174,6 +179,8 @@
       <div class="st" id="lockNote" hidden style="margin-top:8px"></div>
       <div class="deskRow" id="deskRow" hidden><span>🪑 내 자리</span><select id="deskSel"></select></div>
       <form class="sayBox" id="sayBox" hidden><input id="sayIn" maxlength="40" placeholder="💬 말풍선에 할 말 (40자)" autocomplete="off"><button type="submit">말하기</button></form>
+      <form class="sayBox ledBox" id="ledBox" hidden><input id="ledIn" maxlength="30" placeholder="📢 옥상 전광판에 쓰기 (30자)" autocomplete="off"><button type="submit">올리기</button></form>
+      <div class="ledNote" id="ledNote" hidden></div>
       <div class="acts" id="deckActs" hidden><button data-d="1">⬆️ 2층으로</button><button data-d="0">⬇️ 1층으로</button></div>
       <div class="acts" id="roofActs" hidden><button data-a="smoke">🚬 담타</button><button data-a="shout">📢 소리지르기</button></div>
     </div>
@@ -747,6 +754,47 @@ for (const [x,z] of [[-8,-15.4],[-5.2,-15.4],[-.2,-15.4],[-8,-10.2]]) { put(worl
 // 빨랫줄 깃발
 for (let i=0;i<7;i++){ const f = cone(.13,.26, pick([0xffc0d6,0xbfe9d6,0xd6c8ff,0xffe39a]),3); f.rotation.x = Math.PI; put(world, f, -6.5+i*.9, RY+2.0-Math.sin(i/6*Math.PI)*.25, -15.0); }
 put(world, cyl(.03,.03,2.2,0xffffff,6), -7.2,RY+1.1,-15.0); put(world, cyl(.03,.03,2.2,0xffffff,6), -.3,RY+1.1,-15.0);
+// 옥상 전광판 (글씨가 흘러가요)
+const LED = (() => {
+  const W = 8.6, H = 1.05, X = -3.2, Z = -15.7, Y0 = RY + 2.45;
+  const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 128; const ctx = cv.getContext('2d');
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = (W/H)*(cv.height/cv.width); tex.anisotropy = 4;
+  const g = new THREE.Group();
+  put(g, box(W+.3, H+.3, .22, 0x4a4060, .06), 0, 0, -.06);                         // 테두리
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map:tex, toneMapped:false })); scr.position.z = .06; g.add(scr);
+  for (const sx of [-1,1]) { put(world, cyl(.07,.07,Y0 - RY, 0x8a7fa8, 8), X + sx*(W/2 - .6), RY + (Y0-RY)/2 - H/2, Z - .05); }
+  for (let i=0;i<9;i++) put(g, sph(.045, new THREE.MeshBasicMaterial({ color: i%2 ? 0xffd36e : 0xff8fb3 }), 8), -W/2 + .1 + i*(W-.2)/8, H/2 + .2, .06);
+  g.position.set(X, Y0, Z); world.add(g);
+  let text = '';
+  const FONT = 'bold 76px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+  function draw(t){ if (t === text) return; text = t;
+    ctx.font = FONT; const parts0 = t.split(' ✦ '); let need = 60; for (const p of parts0) need += ctx.measureText(p).width + 96;
+    const want = Math.min(8192, Math.max(2048, Math.ceil(need/256)*256 + 300));
+    if (cv.width !== want) { cv.width = want; tex.dispose(); tex.repeat.x = (W/H)*(cv.height/cv.width); }
+    ctx.fillStyle = '#17122a'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.font = FONT; ctx.textBaseline = 'middle';
+    const grad = ctx.createLinearGradient(0,0,cv.width,0); grad.addColorStop(0,'#ffd36e'); grad.addColorStop(.5,'#ff9fc4'); grad.addColorStop(1,'#9fe3ff');
+    ctx.fillStyle = grad; ctx.shadowColor = 'rgba(255,190,120,.9)'; ctx.shadowBlur = 14;
+    let x = 30; const parts = t.split(' ✦ ');
+    for (let i=0;i<parts.length && x < cv.width - 40;i++){ ctx.fillText(parts[i], x, 66); x += ctx.measureText(parts[i]).width + 26; if (i < parts.length-1) { ctx.fillText('✦', x, 66); x += 70; } }
+    ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(10,6,20,.55)';                        // LED 점 무늬
+    for (let y=0;y<cv.height;y+=6) ctx.fillRect(0,y,cv.width,2);
+    for (let xx=0;xx<cv.width;xx+=6) ctx.fillRect(xx,0,2,cv.height);
+    tex.needsUpdate = true; }
+  return { tex, draw, cv, pxPerSec:150 };
+})();
+let BOARD = []; // 전광판 글 (한 사람당 최신 글 하나)
+const LED_COOL = 10*60e3, LED_LS = 'chongmu-office-led';
+function myBoardT(){ const mine = BOARD.find(m => m.id === (myUid || 'local')); let t = mine ? mine.t : 0; try { t = Math.max(t, +localStorage.getItem(LED_LS + 't') || 0); } catch(e){} return t; }
+function refreshLed(){ LED.draw(ledMessage()); }
+function ledMessage(){
+  const k = new Date(Date.now() + 9*3600e3), sec = k.getUTCHours()*3600 + k.getUTCMinutes()*60, wd = k.getUTCDay();
+  const left = 18*3600 - sec, c = (typeof countByStatus === 'function' && chars.length) ? countByStatus() : {};
+  const time = wd === 0 || wd === 6 ? '주말이에요 🎉' : sec < 9*3600 ? '좋은 아침! 오늘도 화이팅' : left > 0 ? `퇴근까지 ${Math.floor(left/3600)}시간 ${Math.floor(left/60)%60}분` : '퇴근 시간! 오늘도 수고했어요';
+  const six = typeof sixAM === 'function' ? sixAM() : 0;
+  const msgs = BOARD.filter(m => m.t >= six && m.text).sort((a,b) => b.t - a.t).slice(0, 8).map(m => `💬 ${m.name || '손님'}: ${m.text}`);
+  return [...msgs, `총무 오피스`, time, `업무중 ${c.work||0}명`, `탕비실 ${c.pantry||0}명`, `월루중 ${c.loaf||0}명`, '햄찍이는 쳇바퀴 중', ''].join(' ✦ ');
+}
 
 // ================================================================ 길 찾기 그래프
 const NODES = {
@@ -1554,7 +1602,7 @@ function catSay(cat, text, ms){ if (cat.bub) cat.bub.remove(); const b = documen
 function spawnHeart(pos, emo){ const el = document.createElement('div'); el.className='heart'; el.textContent=emo; overlay.appendChild(el); hearts.push({ pos, el, life:1.4 }); }
 
 // ================================================================ 라벨
-const ZONE_ANCHORS = { work:[-4.1,2.3,.6], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+2.6,-15.4], vacation:[17.4,2.4,-14.4], stroll:[19.4,2.2,14.4], shred:[-3.4,3.7,-6.2], commute:[-17.35,2.8,-3.2], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
+const ZONE_ANCHORS = { work:[-4.1,2.3,.6], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+4.1,-15.4], vacation:[17.4,2.4,-14.4], stroll:[19.4,2.2,14.4], shred:[-3.4,3.7,-6.2], commute:[-17.35,2.8,-3.2], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
 const zoneEls = {};
 for (const z of STATUSES) {
   const el = document.createElement('div'); el.className = 'zl';
@@ -1592,6 +1640,8 @@ function morningReset(){ const six = sixAM(); if (six === lastSix) return; lastS
   for (const c of chars) { c.deckPref = undefined; if ((c.st||0) < six && c.status !== 'work') { setStatus(c.id, 'work', { remote:true, t:six, quiet:true }); n++; } }
   toast('🌅 좋은 아침! 모두 업무중으로 리셋했어요'); renderPanel(true); }
 function tickClock(){
+  if (!(Date.now() % 15000 < 1000) && LED._init) {} else { LED._init = true; refreshLed(); }
+  if (typeof renderLedUi === 'function' && chars.length) renderLedUi();
   if (chars.length) morningReset();
   const k = kstNow(), sec = k.h*3600 + k.m*60 + k.s, START = 9*3600, END = 18*3600, weekend = k.wd === 0 || k.wd === 6;
   const mode = sec >= END - 30*60 ? 'pm' : 'am'; // 퇴근버스는 17:30부터
@@ -1693,6 +1743,7 @@ function renderPanel(full){
   $('deckActs').hidden = !sel || sel.status !== 'commute' || !ctl || (dbMode && !canWrite);
   if (sel) $('deckActs').querySelectorAll('button').forEach(b => { const d = +b.dataset.d, cur = sel.slot && sel.slot.bus ? sel.slot.deck : sel.deckPref; b.classList.toggle('cur', cur === d); });
   $('sayBox').hidden = !sel || !ctl || (dbMode && !canWrite);
+  renderLedUi();
   $('deskRow').hidden = !sel || !ctl || (dbMode && !canWrite);
   if (sel && ctl) { const dk = sel.id + '|' + chars.map(c => c.id + ':' + c.deskPref + ':' + c.deskIdx + ':' + c.name).join(',');
     if ($('deskSel')._k !== dk) { $('deskSel')._k = dk;
@@ -1750,6 +1801,23 @@ if (isMobile()) focusZone('work', true);
 tickClock(); placeClock(); setInterval(() => { tickClock(); placeClock(); }, 1000); addEventListener('resize', placeClock); setTimeout(placeClock, 1500);
 $('deckActs').querySelectorAll('button').forEach(b => b.onclick = () => { const sel = chars.find(c => c.id === selectedId); if (sel && canControl(sel)) moveDeck(sel.id, +b.dataset.d); });
 $('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
+function renderLedUi(){
+  const can = !dbMode || (canWrite && !!myUid); $('ledBox').hidden = !can; $('ledNote').hidden = !can; if (!can) return;
+  const wait = (dbMode && isOwner) ? 0 : myBoardT() + LED_COOL - Date.now(), btn = $('ledBox').querySelector('button');
+  btn.disabled = wait > 0;
+  const note = wait > 0 ? `⏳ ${Math.floor(wait/60000)}분 ${String(Math.floor(wait/1000)%60).padStart(2,'0')}초 뒤에 다시 쓸 수 있어요` : '📢 옥상 전광판에 모두에게 보여요 · 10분에 한 번';
+  const adm = dbMode && isOwner && BOARD.length ? '<button type="button" id="ledClear">전광판 비우기</button>' : '';
+  if ($('ledNote')._t !== note + adm) { $('ledNote')._t = note + adm; $('ledNote').innerHTML = esc(note) + adm; const cb = $('ledClear'); if (cb) cb.onclick = clearBoard; }
+}
+async function clearBoard(){ if (!isOwner) return; for (const m of BOARD) { try { await DB.doc('board/' + m.id).delete(); } catch(e){} } toast('🧹 전광판을 비웠어요'); }
+$('ledBox').onsubmit = async e => { e.preventDefault();
+  const text = $('ledIn').value.replace(/\s+/g, ' ').trim().slice(0, 30); if (!text) return;
+  if (myBoardT() + LED_COOL > Date.now() && !(dbMode && isOwner)) { toast('⏳ 10분에 한 번만 쓸 수 있어요'); return; }
+  const me = chars.find(c => c.id === meId); const name = (me ? me.name : '손님').slice(0, 12); const t = Date.now();
+  if (dbMode) { try { await DB.doc('board/' + myUid).set({ text, name, t }); } catch (err) { toast(err && err.code === 'permission-denied' ? '⏳ 아직 다시 쓸 수 없어요 (10분)' : '전광판에 올리지 못했어요'); return; } }
+  else { BOARD = BOARD.filter(m => m.id !== 'local'); BOARD.push({ id:'local', text, name, t }); try { localStorage.setItem(LED_LS, JSON.stringify(BOARD)); } catch(e){} refreshLed(); }
+  try { localStorage.setItem(LED_LS + 't', String(t)); } catch(e){}
+  $('ledIn').value = ''; toast('📢 전광판에 올렸어요! 옥상을 봐주세요'); renderLedUi(); };
 $('sayBox').onsubmit = e => { e.preventDefault(); const sel = chars.find(c => c.id === selectedId); if (!sel || !canControl(sel)) return;
   const t = $('sayIn').value; if (!t.trim()) return; speak(sel.id, t); $('sayIn').value = ''; };
 // 리리 비밀번호 로그인 (Firebase 버전에서만)
@@ -1906,7 +1974,7 @@ function frame(now){
     if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/38) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
   }
   const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
-  applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
+  LED.tex.offset.x = (LED.tex.offset.x + dt*LED.pxPerSec/LED.cv.width) % 1; applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
   for (const s of SLOTS.shred) if (s.shredder) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); const pp = s.shredder.paper; pp.visible = !!on; if (on) { pp.position.y = 1.15 - ((t*.5 + s.shredder.x) % 1)*.35; } s.shredder.led.material.color.setHex(on ? 0xff7a7a : 0x6fe0a0); s.shredder.led.material.emissive.setHex(on ? 0xff7a7a : 0x6fe0a0); }
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
   const sel = chars.find(c => c.id === selectedId);
@@ -1970,6 +2038,9 @@ function applyDbSnapshot(snap){
   renderPanel(true);
   return true;
 }
+function listenBoard(){
+  try { DB.collection('board').onSnapshot(snap => { BOARD = snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(m => typeof m.text === 'string' && typeof m.t === 'number'); refreshLed(); renderLedUi(); }, () => {}); } catch(e){}
+}
 async function initDb(){
   if (!window.claude || typeof window.claude.use !== 'function') return false;
   try {
@@ -1996,11 +2067,12 @@ async function initDb(){
       applyDbSnapshot(snap);
       // 주인이 들어오면 리리는 항상 주인 것
       if (isOwner && myUid && charOwner[RIRI_ID] !== myUid && !seeded) { seeded = true; charOwner[RIRI_ID] = myUid; dbWrite(RIRI_ID, { owner:myUid }); }
-      if (!done) { done = true; clearTimeout(timer); resolve(true); }
+      if (!done) { done = true; clearTimeout(timer); resolve(true); listenBoard(); }
     }, err => { if (!done) { done = true; clearTimeout(timer); resolve(false); } else toast('⚠️ 서버 연결이 끊겼어요. 새로고침해 주세요'); });
   });
 }
 
+try { const lb = JSON.parse(localStorage.getItem(LED_LS) || 'null'); if (Array.isArray(lb)) BOARD = lb; } catch(e){}
 const saved = loadLocal();
 if (saved && saved.list.every(d => SBYKEY[d.status])) roster = { ver:saved.ver, fresh:false, list:ensureRiri(saved.list) };
 else { const list = ensureRiri(makeRoster(10)); roster = { ver:Date.now(), fresh:true, list }; }
