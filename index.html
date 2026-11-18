@@ -106,6 +106,9 @@
   #catMenu button[data-act=play]{background:#dcd0fb}
   #catMenu .x{position:absolute;right:11px;top:7px;cursor:pointer;color:var(--sub);font-size:12px}
 
+  #panelTog{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:6;border:none;border-radius:14px 0 0 14px;padding:14px 6px;background:var(--panel);color:var(--ink);font-family:inherit;font-size:12px;line-height:1.25;cursor:pointer;box-shadow:-4px 4px 14px rgba(160,120,200,.22);writing-mode:vertical-rl}
+  #panelTog:hover{background:#f1e8fb}
+  #app.collapsed #panel{display:none}
   #panel{width:320px;flex:none;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
   .sec{padding:14px 16px;border-bottom:1px solid var(--line)}
   .sec h2{margin:0 0 8px;font-size:13px;font-weight:500;color:var(--sub)}
@@ -147,6 +150,7 @@
     #app{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
     #stage{height:64vh;flex:none}
     #panel{width:100%;border-left:none;border-top:1px solid var(--line)}
+    #panelTog{display:none} #app.collapsed #panel{display:flex}
     .title p, .title .hint{display:none}
     .title{padding:6px 12px;top:8px;left:8px}
     .title h1{font-size:16px}
@@ -167,6 +171,7 @@
     <div id="overlay"></div>
     <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p><p class="hint">버벅이면 🪶 가볍게 보기를 눌러주세요</p></div>
     <div class="workclock"><div class="workbar" id="workBar"><span>09:00</span><div class="wb"><i id="wbFill"></i><em id="wbPct"></em></div><span>18:00</span></div><p class="clock" id="offClock"></p></div>
+    <button id="panelTog" title="오른쪽 창 접기/펴기">▶ 창 접기</button>
     <button id="lowBtn" title="아래에서 올려다보기">👀 올려보기</button>
     <div class="conn"><span class="dot" id="connDot"></span><span id="connText">혼자 보는 중</span></div>
     <div id="catMenu" hidden><div class="cn">🐾</div><button data-act="pet">🖐️ 쓰다듬기</button><button data-act="churu">🍡 츄르 주기</button><button data-act="play">🪶 놀아주기</button><span class="x">✕</span></div>
@@ -1803,6 +1808,10 @@ controls.addEventListener('start', () => { camFly = null; });
 if (isMobile()) focusZone('work', true);
 tickClock(); placeClock(); setInterval(() => { tickClock(); placeClock(); }, 1000); addEventListener('resize', placeClock); setTimeout(placeClock, 1500);
 $('deckActs').querySelectorAll('button').forEach(b => b.onclick = () => { const sel = chars.find(c => c.id === selectedId); if (sel && canControl(sel)) moveDeck(sel.id, +b.dataset.d); });
+const PANEL_KEY = 'chongmu-office-panel';
+function setPanel(closed){ $('app').classList.toggle('collapsed', closed); $('panelTog').textContent = closed ? '◀ 창 펴기' : '▶ 창 접기'; try { localStorage.setItem(PANEL_KEY, closed ? '1' : '0'); } catch(e){} resize(); }
+$('panelTog').onclick = () => setPanel(!$('app').classList.contains('collapsed'));
+try { if (localStorage.getItem(PANEL_KEY) === '1') setTimeout(() => setPanel(true), 0); } catch(e){}
 let lowView = false;
 $('lowBtn').onclick = () => { lowView = !lowView; focusKey = null;
   camFly = lowView ? { tg:new THREE.Vector3(0,6,-3), pos:new THREE.Vector3(-3,1.4,24) } : { tg:new THREE.Vector3(0,0,-.4), pos:new THREE.Vector3(-6,44,52) };
