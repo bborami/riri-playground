@@ -41,6 +41,8 @@
   .workclock .wb{position:relative;width:118px;height:14px;border-radius:999px;background:#efe6fb;overflow:hidden}
   .workclock .wb i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#ffd6e8,#c9b6ff);transition:width .8s}
   .workclock .wb em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;color:#5a4470}
+  #zoneTip{position:absolute;z-index:7;pointer-events:none;background:rgba(255,255,255,.95);border-radius:12px;padding:5px 10px;font-size:12.5px;box-shadow:0 6px 18px rgba(160,120,200,.25);white-space:nowrap}
+  #zoneTip[hidden]{display:none}
   #lowBtn{position:absolute;right:16px;top:58px;z-index:4;font-family:inherit;font-size:12.5px;border:none;border-radius:14px;padding:7px 12px;background:var(--panel);color:var(--ink);cursor:pointer;box-shadow:0 6px 18px rgba(160,120,200,.2)}
   #lowBtn:hover{background:#f1e8fb}
   .conn{position:absolute;right:16px;top:16px;background:var(--panel);border-radius:14px;padding:7px 12px;font-size:12.5px;box-shadow:0 6px 18px rgba(160,120,200,.2);display:flex;gap:6px;align-items:center}
@@ -169,7 +171,7 @@
   <div id="stage">
     <div id="loading">사무실 짓는 중…</div>
     <div id="overlay"></div>
-    <div class="title"><h1>🏢 총무 오피스</h1><p>상태를 바꾸면 그 구역으로 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p><p class="hint">버벅이면 🪶 가볍게 보기를 눌러주세요</p></div>
+    <div class="title"><h1>🏢 총무 오피스</h1><p>구역을 누르면 내 캐릭터가 걸어가요 · 고양이를 눌러보세요 🐾 · 드래그로 회전</p><p class="hint">캐릭터가 안보이면 F5키를 눌러주세요</p><p class="hint">버벅이면 🪶 가볍게 보기를 눌러주세요</p></div>
     <div class="workclock"><div class="workbar" id="workBar"><span>09:00</span><div class="wb"><i id="wbFill"></i><em id="wbPct"></em></div><span>18:00</span></div><p class="clock" id="offClock"></p></div>
     <button id="panelTog" title="오른쪽 창 접기/펴기">▶ 창 접기</button>
     <button id="lowBtn" title="아래에서 올려다보기">👀 올려보기</button>
@@ -1612,16 +1614,19 @@ function spawnHeart(pos, emo){ const el = document.createElement('div'); el.clas
 // ================================================================ 라벨
 const ZONE_ANCHORS = { work:[-4.1,2.3,.6], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+4.1,-15.4], vacation:[17.4,2.4,-14.4], stroll:[19.4,2.2,14.4], shred:[-3.4,3.7,-6.2], commute:[-17.35,2.8,-3.2], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
 const zoneEls = {};
-for (const z of STATUSES) {
-  const el = document.createElement('div'); el.className = 'zl';
-  el.innerHTML = `<div class="ic" style="background:${z.ic}">${z.emoji}</div><div><b>${z.label}</b><small></small></div>`;
-  el.title = `눌러서 ${z.label}(으)로 가기`;
-  el.addEventListener('click', () => { const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
-    const who = [sel, me].find(c => c && canControl(c) && !(dbMode && !canWrite));
-    if (!who) { toast('🔒 내 캐릭터를 먼저 만들거나 골라주세요'); return; }
-    if (who.status === z.key) { toast(`이미 ${SBYKEY[z.key].label}이에요`); return; }
-    selectedId = who.id; setStatus(who.id, z.key); renderPanel(true); });
-  overlay.appendChild(el); zoneEls[z.key] = el;
+// 구역 이름표는 없애고, 3D 바닥/건물을 누르면 그 구역으로 이동 (2026-11-18)
+function goZone(key){ const z = SBYKEY[key]; const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
+  const who = [sel, me].find(c => c && canControl(c) && !(dbMode && !canWrite));
+  if (!who) { toast('🔒 내 캐릭터를 먼저 만들거나 골라주세요'); return; }
+  if (who.status === key) { toast(`이미 ${z.label}이에요`); return; }
+  selectedId = who.id; setStatus(who.id, key); renderPanel(true); toast(`${z.emoji} ${who.name} → ${z.label}`); }
+let ZONE_PTS = null;
+function zoneAt(p){ // 누른 점에서 가장 가까운 자리/구역 중심
+  if (!ZONE_PTS) { ZONE_PTS = []; for (const k in SLOTS) if (SBYKEY[k]) for (const sl of SLOTS[k]) if (sl.pos) ZONE_PTS.push([k, sl.pos[0], sl.pos[1]||0, sl.pos[2]]);
+    for (const k in ZONE_ANCHORS) { const a = ZONE_ANCHORS[k]; ZONE_PTS.push([k, a[0], k === 'roof' ? RY : 0, a[2]]); } }
+  let best = null, bd = 1e9;
+  for (const [k,x,y,z] of ZONE_PTS) { const d = Math.hypot(p.x-x, p.z-z) + Math.abs(p.y-y)*1.5; if (d < bd) { bd = d; best = k; } }
+  return bd < 6.5 ? best : null;
 }
 // 출퇴근 시계 (한국 시간 9시 출근 · 18시 퇴근)
 const NIGHT = { v:0, target:0, applied:-1 };
@@ -1677,7 +1682,6 @@ function placeEl(el, x,y,z){ const [sx,sy,sz] = toScreen(x,y,z); if (sz > 1) { i
 function updateOverlay(now, dt){
   RECT = renderer.domElement.getBoundingClientRect();
   const counts = countByStatus();
-  for (const z of STATUSES) { const [x,y,zz] = ZONE_ANCHORS[z.key]; placeEl(zoneEls[z.key], x,y,zz); const sm = zoneEls[z.key]._sm || (zoneEls[z.key]._sm = zoneEls[z.key].querySelector('small')); setText(sm, `${counts[z.key]||0}명 · ${z.sub}`); }
   for (const c of chars) {
     const p = c.m.root.position, h = c.pose==='lie' ? 1.0 : c.pose==='sleep' ? .7 : 1.55*c.look.scale;
     const vis = c.m.root.visible;
@@ -1920,6 +1924,8 @@ function hit(e){
   mouse.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(mouse, camera);
   const hits = ray.intersectObjects([...cats.map(c => c.m.root), ham.g, charGroup, ...BUSES.map(B => B.group)], true);
   for (const h of hits) { if (!h.object.visible) continue; if (h.object.userData.ham) return { ham:true }; if (h.object.userData.bus) { const B = h.object.userData.bus; const ly = B.group.worldToLocal(h.point.clone()).y; return { bus:B, deck: ly > 2.0 ? 1 : 0 }; } if (h.object.userData.catRoot) return { cat: cats.find(c => c.m.root === h.object.userData.catRoot) }; if (h.object.userData.charId) return { char: h.object.userData.charId }; }
+  const wh = ray.intersectObject(world, true).find(h => h.object.visible && !h.object.isSprite);
+  if (wh) { const k = zoneAt(wh.point); if (k) return { zone:k }; }
   return null;
 }
 renderer.domElement.addEventListener('pointerup', e => {
@@ -1929,13 +1935,21 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (h && h.ham) { openHamMenu(e.clientX, e.clientY); return; }
   closeCatMenu(); closeHamMenu();
   if (h && h.char) { selectedId = h.char; renderPanel(); }
+  if (h && h.zone) goZone(h.zone);
   if (h && h.bus) { // 버스 1층/2층 클릭 → 내 캐릭터 자리 옮기기
     const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
     const who = [sel, me].find(c => c && canControl(c) && c.slot && c.slot.bus === h.bus) || [sel, me].find(c => c && canControl(c) && c.status === 'commute');
     if (who) moveDeck(who.id, h.deck); else toast('🚌 내 캐릭터가 출퇴근중일 때 1층/2층을 고를 수 있어요');
   }
 });
-renderer.domElement.addEventListener('pointermove', e => { if (e.buttons) return; const h = hit(e); renderer.domElement.style.cursor = h ? (h.cat ? 'grab' : 'pointer') : 'default'; });
+const zoneTip = document.createElement('div'); zoneTip.id = 'zoneTip'; zoneTip.hidden = true; stage.appendChild(zoneTip);
+let hoverT = 0;
+renderer.domElement.addEventListener('pointermove', e => { if (e.buttons) { zoneTip.hidden = true; return; } const n = performance.now(); if (n - hoverT < 90) return; hoverT = n;
+  const h = hit(e); renderer.domElement.style.cursor = h ? (h.cat ? 'grab' : 'pointer') : 'default';
+  if (h && h.zone && !isMobile()) { const z = SBYKEY[h.zone], r = stage.getBoundingClientRect(), cnt = countByStatus()[h.zone] || 0;
+    zoneTip.innerHTML = `${z.emoji} <b>${z.label}</b> ${cnt}명 · 눌러서 이동`; zoneTip.style.left = (e.clientX - r.left + 14) + 'px'; zoneTip.style.top = (e.clientY - r.top + 14) + 'px'; zoneTip.hidden = false; }
+  else zoneTip.hidden = true; });
+renderer.domElement.addEventListener('pointerleave', () => { zoneTip.hidden = true; });
 let menuCat = null;
 function openCatMenu(cat, cx, cy){ menuCat = cat; const m = $('catMenu'), r = stage.getBoundingClientRect(); m.querySelector('.cn').textContent = '🐾 ' + cat.coat.name; m.style.left = clamp(cx-r.left-80, 8, r.width-170)+'px'; m.style.top = clamp(cy-r.top-120, 8, r.height-120)+'px'; m.hidden = false; }
 function openHamMenu(cx, cy){ closeCatMenu(); const m = $('hamMenu'), r = stage.getBoundingClientRect(); m.style.left = clamp(cx-r.left-98, 8, r.width-206)+'px'; m.style.top = clamp(cy-r.top-150, 8, r.height-150)+'px'; m.hidden = false; hamSay('햄찍?', 1500); }
@@ -2108,7 +2122,7 @@ document.getElementById('loading').textContent = '사무실 불러오는 중…'
   } else { const dot = $('connDot'), txt = $('connText'); dot.classList.add('on'); txt.textContent = canWrite ? '모두와 실시간 공유 중' : '보기 전용으로 공유 중'; }
   const ld = document.getElementById('loading'); if (ld) ld.remove();
 })();
-window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, BUS, BUSES, ham, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepBus(.05); stepChars(tt,.05); stepCats(tt,.05); stepHamster(tt,.05); } } };
+window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, BUS, BUSES, ham, zoneAt, hit, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepBus(.05); stepChars(tt,.05); stepCats(tt,.05); stepHamster(tt,.05); } } };
 requestAnimationFrame(t => { last = t; frame(t); });
 </script>
 </body>
