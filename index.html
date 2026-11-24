@@ -333,7 +333,7 @@ function tree(x,y,z,s=1){
 function rug(x,z,w,d,color,y=0){ const r = box(w,.04,d,color,.02); r.castShadow=false; put(world, r, x,y+.02,z); return r; }
 function wall(x,z,w,h,d,color,y=0){ return put(world, box(w,h,d,color,.04), x,y+h/2,z); }
 
-// --- 업무 구역 (본관 책상 12개 + 별관 8개 = 20자리, 2026-11-24)
+// --- 업무 구역 (본관 책상 12개 + 별관 12개 = 24자리, 2026-11-24)
 const OFFICE = { clusters:[-6.6,-1.6], rows:[-1.1,.6,2.3] };
 rug(-4.1, .6, 10.6, 5.4, 0xefe6fd);
 const desks = []; // {seat:[x,z], ry, aisleX, via, screenMat}
@@ -370,15 +370,15 @@ for (const cx of OFFICE.clusters) for (const rz of OFFICE.rows) deskCluster(cx, 
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
   return [aisleX, aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3'];
 });
-// --- 업무 별관 (앞쪽 플랫폼, 책상 8개)
-const ANNEX = { clusters:[-1.6,3.4], rows:[8.6,10.2], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
-platform(-5.4, 7.6, 7.0, 11.6, 0);
-rug(.9, 9.4, 11.6, 3.8, 0xefe6fd);
+// --- 업무 별관 (앞쪽 플랫폼, 책상 12개)
+const ANNEX = { clusters:[-6.6,-1.6,3.4], rows:[8.6,10.2], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
+platform(-10.0, 7.6, 7.0, 11.6, 0);
+rug(-1.6, 9.4, 16.6, 3.8, 0xefe6fd);
 for (const bx of [-4.1, 1.1]) {
   for (let i=0;i<4;i++) put(world, box(1.2,.1,.32,C.wood,.03), bx, -.05, 5.75+i*.34);
   for (const sx of [-.62,.62]) { put(world, box(.05,.05,1.5,C.woodDark,.02), bx+sx,.6,6.3); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,5.6); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,7.0); }
 }
-for (const [x,z,s] of [[-4.9,11.1,.9],[7.1,11.1,.9],[7.1,7.5,.8],[-4.9,7.5,.85]]) tree(x,0,z,s);
+for (const [x,z,s] of [[-9.5,11.1,.9],[7.1,11.1,.9],[7.1,7.5,.8],[-9.5,7.5,.85]]) tree(x,0,z,s);
 for (const cx of ANNEX.clusters) for (const rz of ANNEX.rows) deskCluster(cx, rz, (cx, side) => {
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : cx === -1.6 ? (side < 0 ? -4.1 : 1.1) : (side < 0 ? 1.1 : 6.1);
   return [aisleX, ANNEX.aisles[String(aisleX)]];
@@ -848,7 +848,7 @@ for (const z of [2.55,3.2,3.85]) SLOTS.commute.push({ pos:[-16.1,0,z], ry:Math.P
 for (const [x,z] of [[-15.35,1.9],[-15.25,4.5],[-15.6,5.2],[-15.6,1.2]]) SLOTS.commute.push({ pos:[x,0,z], ry:Math.PI/2, pose:'wait', via:'BS1', approach:[] });
 for (let i=0;i<14;i++){ const a = i/14*Math.PI*2; SLOTS.stroll.push({ pos:loopPt(a), a, dir: i%2 ? 1 : -1, ry:0, pose:'walk', via:'K0', approach:[], loop:true }); }
 // 운동기구 자리 (산책 상태 중 일부는 운동): 철봉 2 · 평행봉 1 · 매트 2 · 벤치 1
-const GYM_IN = [[GYM.x-1.6, GYM.z+1.9]];
+const GYM_IN = [[GYM.x-1.6, 0, GYM.z+1.9]]; // [x,y,z] (y 빠지면 하늘로 날아감!)
 for (const dx of [-.45,.45]) SLOTS.stroll.push({ pos:[GYM.x+dx,0,GYM.z-1.0], ry:0, pose:'pullup', via:'K0', approach:GYM_IN });
 SLOTS.stroll.push({ pos:[GYM.x+1.25,0,GYM.z+.35], ry:0, pose:'dip', via:'K0', approach:GYM_IN });
 for (const dx of [-.9,.05]) SLOTS.stroll.push({ pos:[GYM.x+dx,0,GYM.z+.75], ry:0, pose:'stretch', via:'K0', approach:GYM_IN });
@@ -2145,6 +2145,47 @@ document.getElementById('loading').textContent = '사무실 불러오는 중…'
   const ld = document.getElementById('loading'); if (ld) ld.remove();
 })();
 window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction, SLOTS, camera, controls, BUS, BUSES, ham, zoneAt, hit, sim(sec){ for (let i=0;i<sec*20;i++){ const tt=performance.now()/1000+i*.05; stepBus(.05); stepChars(tt,.05); stepCats(tt,.05); stepHamster(tt,.05); } } };
+// ---- 움직이지 않는 장식 합치기 (2026-11-24): 같은 재질끼리 한 덩어리로 → 그리기 횟수 크게 줄임. 모습은 그대로.
+function freezeStatic(){
+  const t0 = performance.now();
+  const shared = new Set(matCache.values());
+  const skip = new Set([...BUSES.map(B => B.group), ...stalls.map(s => s.door), ...SHREDDERS.flatMap(s => [s.paper, s.led])]);
+  world.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(world.matrixWorld).invert(), mtx = new THREE.Matrix4();
+  const groups = new Map(); let before = 0;
+  world.traverse(o => {
+    if (!o.isMesh || !shared.has(o.material) || o.material.transparent) return;
+    for (let p = o; p && p !== world; p = p.parent) if (skip.has(p) || !p.visible) return;
+    const k = o.material.uuid + (o.castShadow ? 's' : 'n'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(o); before++;
+  });
+  let after = 0;
+  for (const list of groups.values()) {
+    if (list.length < 2) { after += list.length; continue; }
+    const parts = []; let n = 0;
+    for (const o of list) {
+      let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      mtx.multiplyMatrices(inv, o.matrixWorld); g.applyMatrix4(mtx);
+      const cnt = g.attributes.position.count; parts.push({ g, cnt }); n += cnt;
+    }
+    const pos = new Float32Array(n*3), nor = new Float32Array(n*3), uv = new Float32Array(n*2); let off = 0;
+    for (const { g, cnt } of parts) {
+      pos.set(g.attributes.position.array, off*3);
+      if (g.attributes.normal) nor.set(g.attributes.normal.array, off*3);
+      if (g.attributes.uv) uv.set(g.attributes.uv.array, off*2);
+      off += cnt; g.dispose();
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.computeBoundingSphere(); geo.computeBoundingBox();
+    const mesh = new THREE.Mesh(geo, list[0].material); mesh.castShadow = list[0].castShadow; mesh.receiveShadow = true; mesh.userData.frozen = true; world.add(mesh); after++;
+    for (const o of list) o.parent.remove(o);
+  }
+  // 비어버린 그룹 정리
+  const empty = []; world.traverse(o => { if (o !== world && !o.isMesh && o.children.length === 0 && o.type === 'Group' && !skip.has(o)) empty.push(o); });
+  for (const o of empty) o.parent && o.parent.remove(o);
+  window.__freeze = { before, after, ms: Math.round(performance.now() - t0) };
+}
+try { freezeStatic(); } catch (e) { console.warn('freezeStatic', e); }
 requestAnimationFrame(t => { last = t; frame(t); });
 </script>
 </body>
