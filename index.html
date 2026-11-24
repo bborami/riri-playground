@@ -777,15 +777,15 @@ for (let i=0;i<7;i++){ const f = cone(.13,.26, pick([0xffc0d6,0xbfe9d6,0xd6c8ff,
 put(world, cyl(.03,.03,2.2,0xffffff,6), -7.2,RY+1.1,-15.0); put(world, cyl(.03,.03,2.2,0xffffff,6), -.3,RY+1.1,-15.0);
 // 옥상 전광판 (글씨가 흘러가요)
 const LED = (() => {
-  const W = 8.6, H = 1.05, X = -3.2, Z = -15.7, Y0 = RY + 2.45;
+  const W = 8.6, H = 1.05, X = 11, Z = -11, Y0 = RY + 4.3; // 하늘에 둥둥 (2026-11-24: 말풍선에 가려서 위로)
   const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 128; const ctx = cv.getContext('2d');
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = (W/H)*(cv.height/cv.width); tex.anisotropy = 4;
   const g = new THREE.Group();
   put(g, box(W+.3, H+.3, .22, 0x4a4060, .06), 0, 0, -.06);                         // 테두리
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map:tex, toneMapped:false })); scr.position.z = .06; g.add(scr);
-  for (const sx of [-1,1]) { put(world, cyl(.07,.07,Y0 - RY, 0x8a7fa8, 8), X + sx*(W/2 - .6), RY + (Y0-RY)/2 - H/2, Z - .05); }
+  for (const sx of [-1,1]) { const bl = new THREE.Group(); put(bl, sph(.32, sx < 0 ? 0xffb3c7 : 0xb9e6ff, 14), 0,.95,0); put(bl, cyl(.008,.008,.75,0xffffff,4), 0,.4,0); put(g, bl, sx*(W/2 - .5), H/2, 0); } // 풍선 2개
   for (let i=0;i<9;i++) put(g, sph(.045, new THREE.MeshBasicMaterial({ color: i%2 ? 0xffd36e : 0xff8fb3 }), 8), -W/2 + .1 + i*(W-.2)/8, H/2 + .2, .06);
-  g.position.set(X, Y0, Z); world.add(g);
+  g.position.set(X, Y0, Z); g.scale.setScalar(1.35); world.add(g);
   let text = '';
   const FONT = 'bold 76px "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
   function draw(t){ if (t === text) return; text = t;
@@ -802,7 +802,7 @@ const LED = (() => {
     for (let y=0;y<cv.height;y+=6) ctx.fillRect(0,y,cv.width,2);
     for (let xx=0;xx<cv.width;xx+=6) ctx.fillRect(xx,0,2,cv.height);
     tex.needsUpdate = true; }
-  return { tex, draw, cv, pxPerSec:150 };
+  return { tex, draw, cv, pxPerSec:150, g, Y0 };
 })();
 let BOARD = []; // 전광판 글 (한 사람당 최신 글 하나)
 const LED_COOL = 10*60e3, LED_LS = 'chongmu-office-led';
@@ -2026,7 +2026,7 @@ function frame(now){
     if (perfN >= 120) { perfDone = true; if (perfSum/perfN > 1/45) setLite(true, '🪶 컴퓨터가 버거워해서 가볍게 보기로 바꿨어요 (아래 버튼으로 끌 수 있어요)'); }
   }
   const dt = Math.min(.05, rawDt); last = now; const t = now/1000;
-  LED.tex.offset.x = (LED.tex.offset.x + dt*LED.pxPerSec/LED.cv.width) % 1; applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
+  LED.tex.offset.x = (LED.tex.offset.x + dt*LED.pxPerSec/LED.cv.width) % 1; LED.g.position.y = LED.Y0 + Math.sin(t*.9)*.12; applyNight(dt); stepBus(dt); stepChars(t, dt); stepCats(t, dt); stepHamster(t, dt); stepSmoke(dt);
   for (const s of SLOTS.shred) if (s.shredder) { const on = s.occ && chars.find(c => c.id === s.occ && !c.path.length); const pp = s.shredder.paper; pp.visible = !!on; if (on) { pp.position.y = 1.15 - ((t*.5 + s.shredder.x) % 1)*.35; } s.shredder.led.material.color.setHex(on ? 0xff7a7a : 0x6fe0a0); s.shredder.led.material.emissive.setHex(on ? 0xff7a7a : 0x6fe0a0); }
   if (simOn) { simTimer -= dt; if (simTimer <= 0) { simTimer = rand(3,7); const c = pick(chars); setStatus(c.id, pick(STATUSES.filter(s => s.key !== c.status)).key); } }
   const sel = chars.find(c => c.id === selectedId);
@@ -2149,7 +2149,7 @@ window.__office = { get chars(){ return chars; }, cats, setStatus, triggerAction
 function freezeStatic(){
   const t0 = performance.now();
   const shared = new Set(matCache.values());
-  const skip = new Set([...BUSES.map(B => B.group), ...stalls.map(s => s.door), ...SHREDDERS.flatMap(s => [s.paper, s.led])]);
+  const skip = new Set([LED.g, ...BUSES.map(B => B.group), ...stalls.map(s => s.door), ...SHREDDERS.flatMap(s => [s.paper, s.led])]);
   world.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(world.matrixWorld).invert(), mtx = new THREE.Matrix4();
   const groups = new Map(); let before = 0;
