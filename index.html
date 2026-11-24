@@ -265,9 +265,9 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 stage.prepend(renderer.domElement); { const zb = document.createElement('div'); zb.id = 'zoneBar'; stage.appendChild(zb); } { const sky = document.createElement('div'); sky.id = 'nightSky'; stage.prepend(sky); }
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, .5, 300);
-camera.position.set(-6, 44, 52);
+camera.position.set(-3.5, 47, 56);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0, -.4);
+controls.target.set(2.5, 0, 1.6);
 controls.enableDamping = true; controls.dampingFactor = .08;
 controls.minDistance = 9; controls.maxDistance = 75; controls.maxPolarAngle = 1.85; /* 아래에서 올려보기까지 */ controls.minPolarAngle = .35;
 controls.update();
@@ -333,7 +333,7 @@ function tree(x,y,z,s=1){
 function rug(x,z,w,d,color,y=0){ const r = box(w,.04,d,color,.02); r.castShadow=false; put(world, r, x,y+.02,z); return r; }
 function wall(x,z,w,h,d,color,y=0){ return put(world, box(w,h,d,color,.04), x,y+h/2,z); }
 
-// --- 업무 구역 (본관 책상 12개 + 별관 24개)
+// --- 업무 구역 (본관 책상 12개 + 별관 8개 = 20자리, 2026-11-24)
 const OFFICE = { clusters:[-6.6,-1.6], rows:[-1.1,.6,2.3] };
 rug(-4.1, .6, 10.6, 5.4, 0xefe6fd);
 const desks = []; // {seat:[x,z], ry, aisleX, via, screenMat}
@@ -370,47 +370,59 @@ for (const cx of OFFICE.clusters) for (const rz of OFFICE.rows) deskCluster(cx, 
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : (side < 0 ? -4.1 : 1.1);
   return [aisleX, aisleX === -9.1 ? 'B1' : aisleX === -4.1 ? 'B2' : 'B3'];
 });
-// --- 업무 별관 (앞쪽 플랫폼, 책상 30개)
-const ANNEX = { clusters:[-6.6,-1.6,3.4], rows:[8.6,10.2,11.8,13.4,15.0], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
-platform(-11.5, 7.6, 7.0, 16.4, 0);
-rug(-2.0, 11.8, 17.4, 8.6, 0xefe6fd);
+// --- 업무 별관 (앞쪽 플랫폼, 책상 8개)
+const ANNEX = { clusters:[-1.6,3.4], rows:[8.6,10.2], aisles:{ '-9.1':'N1', '-4.1':'N2', '1.1':'N3', '6.1':'N4' } };
+platform(-5.4, 7.6, 7.0, 11.6, 0);
+rug(.9, 9.4, 11.6, 3.8, 0xefe6fd);
 for (const bx of [-4.1, 1.1]) {
   for (let i=0;i<4;i++) put(world, box(1.2,.1,.32,C.wood,.03), bx, -.05, 5.75+i*.34);
   for (const sx of [-.62,.62]) { put(world, box(.05,.05,1.5,C.woodDark,.02), bx+sx,.6,6.3); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,5.6); put(world, cyl(.04,.04,.65,C.woodDark,6), bx+sx,.3,7.0); }
 }
-for (const [x,z,s] of [[-11,15.9,1],[7.1,15.9,.9],[7.1,7.5,.8],[-11,7.5,.85]]) tree(x,0,z,s);
+for (const [x,z,s] of [[-4.9,11.1,.9],[7.1,11.1,.9],[7.1,7.5,.8],[-4.9,7.5,.85]]) tree(x,0,z,s);
 for (const cx of ANNEX.clusters) for (const rz of ANNEX.rows) deskCluster(cx, rz, (cx, side) => {
   const aisleX = cx === -6.6 ? (side < 0 ? -9.1 : -4.1) : cx === -1.6 ? (side < 0 ? -4.1 : 1.1) : (side < 0 ? 1.1 : 6.1);
   return [aisleX, ANNEX.aisles[String(aisleX)]];
 });
 
-// --- 산책로 (별관 오른쪽, 떠 있는 공원)
-const PARK = { x0:9.0, x1:21.6, z0:6.6, z1:14.8, cx:15.3, cz:10.7, rx:4.6, rz:2.9 };
+// --- 산책로 (별관 오른쪽, 떠 있는 공원) — 2026-11-24 넓힘 + 운동기구
+const PARK = { x0:9.0, x1:24.6, z0:6.6, z1:19.2, cx:16.4, cz:12.9, rx:5.8, rz:4.5 };
 function loopPt(a){ return [PARK.cx + Math.cos(a)*PARK.rx, 0, PARK.cz + Math.sin(a)*PARK.rz]; }
+const GYM = { x:PARK.cx+2.1, z:PARK.cz };
 platform(PARK.x0, PARK.x1, PARK.z0, PARK.z1, 0, 0xeaf7e2);
 {
   // 길 (돌 타일)
-  const N = 46;
+  const N = 58;
   for (let i=0;i<N;i++){ const a = i/N*Math.PI*2; const [x,,z] = loopPt(a);
     const t = box(.78,.05,.62, i%2 ? 0xf6e7cf : 0xefdcc0, .03); t.castShadow = false; t.position.set(x,.03,z);
     t.rotation.y = -Math.atan2(Math.cos(a)*PARK.rz, -Math.sin(a)*PARK.rx); world.add(t); }
   // 입구 길 (다리 → 산책로)
-  for (let i=0;i<3;i++) { const t = box(.6,.05,.62,0xf6e7cf,.03); t.castShadow=false; put(world, t, 9.4+i*.55,.03,8.6+i*.55); }
-  // 가운데 꽃밭
-  const bed = cyl(1,1,.12,0xc9ecb8,28); bed.scale.set(2.6,1,1.45); put(world, bed, PARK.cx,.06,PARK.cz);
-  for (let i=0;i<34;i++){ const a = Math.random()*Math.PI*2, r = Math.sqrt(Math.random())*.92;
-    put(world, sph(.09, pick([0xffb3c7,0xffe08a,0xffffff,0xd8c2ff,0xff9ec0]), 8), PARK.cx+Math.cos(a)*r*2.5, .2, PARK.cz+Math.sin(a)*r*1.35); }
-  tree(PARK.cx-.9,0,PARK.cz-.2,1.15); tree(PARK.cx+1.1,0,PARK.cz+.3,.95);
+  { const [ex,,ez] = loopPt(Math.PI*1.2), sx = 9.5, sz = 8.5, n = Math.ceil(Math.hypot(ex-sx, ez-sz)/.6);
+    for (let i=0;i<n;i++) { const f = i/n, t = box(.6,.05,.62,0xf6e7cf,.03); t.castShadow=false; t.rotation.y = Math.atan2(ex-sx, ez-sz); put(world, t, sx+(ex-sx)*f,.03,sz+(ez-sz)*f); } }
+  // 가운데 꽃밭 (왼쪽)
+  const fx = PARK.cx-1.9, bed = cyl(1,1,.12,0xc9ecb8,28); bed.scale.set(2.2,1,1.9); put(world, bed, fx,.06,PARK.cz);
+  for (let i=0;i<30;i++){ const a = Math.random()*Math.PI*2, r = Math.sqrt(Math.random())*.92;
+    put(world, sph(.09, pick([0xffb3c7,0xffe08a,0xffffff,0xd8c2ff,0xff9ec0]), 8), fx+Math.cos(a)*r*2.1, .2, PARK.cz+Math.sin(a)*r*1.8); }
+  tree(fx-.6,0,PARK.cz-.4,1.15); tree(fx+.8,0,PARK.cz+.5,.95);
+  // 운동 구역 (오른쪽): 고무 바닥 + 철봉 + 평행봉 + 매트 + 윗몸일으키기 벤치
+  const pad = box(3.4,.04,3.4,0xffd9c7,.04); pad.castShadow = false; put(world, pad, GYM.x,.05,GYM.z);
+  const bar = 0x8a7fa8, metal = 0xb9b3cc;
+  for (const dx of [-.95,.95]) put(world, cyl(.05,.05,2.15,bar,8), GYM.x+dx,1.08,GYM.z-1.0);         // 철봉 기둥
+  const pb = cyl(.035,.035,1.9,metal,8); pb.rotation.z = Math.PI/2; put(world, pb, GYM.x,2.12,GYM.z-1.0); // 철봉
+  for (const rx of [-.3,.3]) { const r = cyl(.03,.03,1.3,metal,6); r.rotation.x = Math.PI/2; put(world, r, GYM.x+1.25+rx,.95,GYM.z+.35); // 평행봉
+    for (const dz of [-.55,.55]) put(world, cyl(.035,.035,.95,bar,6), GYM.x+1.25+rx,.47,GYM.z+.35+dz); }
+  for (const [dx,col] of [[-.9,0xb8e6ff],[.05,0xffc2e0]]) { const mt = box(.62,.03,1.2,col,.02); mt.castShadow = false; put(world, mt, GYM.x+dx,.08,GYM.z+.75); } // 요가매트
+  const bench = new THREE.Group(); put(bench, box(.42,.08,1.1,0x9f8fd6,.03), 0,.38,0); put(bench, box(.06,.36,.06,bar,.01), 0,.18,-.42); put(bench, box(.06,.36,.06,bar,.01), 0,.18,.42);
+  put(world, bench, GYM.x-1.35,0,GYM.z-.9);
   // 연못
-  const pond = cyl(1,1,.06,0x9fdcf5,28); pond.scale.set(1.15,1,.75); put(world, pond, 20.5,.05,7.6);
-  for (let i=0;i<3;i++) put(world, cyl(.16,.16,.03,0x8fd7a0,12), 20.1+i*.35,.1,7.5+i*.12);
+  const pond = cyl(1,1,.06,0x9fdcf5,28); pond.scale.set(1.15,1,.75); put(world, pond, PARK.x1-1.5,.05,PARK.z0+1.1);
+  for (let i=0;i<3;i++) put(world, cyl(.16,.16,.03,0x8fd7a0,12), PARK.x1-1.9+i*.35,.1,PARK.z0+1.0+i*.12);
   // 나무 · 벤치 · 가로등
-  for (const [x,z,sz] of [[9.6,14.2,1],[21.0,14.2,1.1],[21.1,10.5,.85],[9.5,11.6,.9],[13.0,14.4,.8],[17.6,14.4,.9],[14.2,7.0,.8]]) tree(x,0,z,sz);
-  for (const a of [Math.PI*.5, Math.PI*1.5, Math.PI*.15]) { const [x,,z] = loopPt(a); const ox = Math.cos(a)*.95, oz = Math.sin(a)*.95;
+  for (const [x,z,sz] of [[9.6,18.5,1],[24.0,18.5,1.1],[24.0,12.6,.85],[9.5,13.2,.9],[13.0,18.7,.8],[19.6,18.7,.9],[14.6,7.1,.8],[18.8,7.1,.7]]) tree(x,0,z,sz);
+  for (const a of [Math.PI*.5, Math.PI*1.5, Math.PI*.15, Math.PI*.85]) { const [x,,z] = loopPt(a); const ox = Math.cos(a)*.95, oz = Math.sin(a)*.95;
     const b = new THREE.Group(); put(b, box(1.0,.07,.36,C.wood,.03), 0,.42,0); put(b, box(1.0,.32,.06,C.wood,.03), 0,.62,-.17);
     for (const lx of [-.42,.42]) put(b, box(.06,.42,.3,C.woodDark,.02), lx,.21,0);
     b.rotation.y = Math.atan2(-ox, -oz); b.position.set(x+ox, 0, z+oz); world.add(b); }
-  for (const a of [Math.PI*.8, Math.PI*1.2, Math.PI*.35]) { const [x,,z] = loopPt(a); const k = 1.25;
+  for (const a of [Math.PI*.7, Math.PI*1.3, Math.PI*.3, Math.PI*1.75]) {
     const lx = PARK.cx + Math.cos(a)*(PARK.rx+.75), lz = PARK.cz + Math.sin(a)*(PARK.rz+.6);
     put(world, cyl(.04,.05,1.3,0x8a7fa8,8), lx,.65,lz); put(world, sph(.13, new THREE.MeshStandardMaterial({ color:0xfff4c2, emissive:0xffe28a, emissiveIntensity:.5 }), 10), lx,1.35,lz); }
   // 별관 → 공원 다리
@@ -668,7 +680,7 @@ platform(13.4, 21.6, -14.6, -5.9, 0, 0xfff1d6);
 const VBEDS = [];
 {
   rug(17.5, -10.3, 7.8, 8.4, 0xfff5e2);
-  const cols = [14.35,15.85,17.35,18.85,20.35], rows = [-9.25,-12.65];
+  const cols = [15.1,17.35,19.6], rows = [-9.25,-12.65]; // 침대 6개 (2026-11-24)
   const covers = [0xffc7d6,0xbfe9d6,0xd6c8ff,0xffe39a,0xa9d8ff];
   rows.forEach((bz, ri) => cols.forEach((bx, ci) => {
     const g = new THREE.Group();
@@ -835,6 +847,12 @@ for (const [x,z] of [[-4.5,-5.2],[-3.4,-5.0],[-4.0,-4.3]]) SLOTS.shred.push({ po
 for (const z of [2.55,3.2,3.85]) SLOTS.commute.push({ pos:[-16.1,0,z], ry:Math.PI/2, pose:'drink', seat:.42, via:'BS1', approach:[] });
 for (const [x,z] of [[-15.35,1.9],[-15.25,4.5],[-15.6,5.2],[-15.6,1.2]]) SLOTS.commute.push({ pos:[x,0,z], ry:Math.PI/2, pose:'wait', via:'BS1', approach:[] });
 for (let i=0;i<14;i++){ const a = i/14*Math.PI*2; SLOTS.stroll.push({ pos:loopPt(a), a, dir: i%2 ? 1 : -1, ry:0, pose:'walk', via:'K0', approach:[], loop:true }); }
+// 운동기구 자리 (산책 상태 중 일부는 운동): 철봉 2 · 평행봉 1 · 매트 2 · 벤치 1
+const GYM_IN = [[GYM.x-1.6, GYM.z+1.9]];
+for (const dx of [-.45,.45]) SLOTS.stroll.push({ pos:[GYM.x+dx,0,GYM.z-1.0], ry:0, pose:'pullup', via:'K0', approach:GYM_IN });
+SLOTS.stroll.push({ pos:[GYM.x+1.25,0,GYM.z+.35], ry:0, pose:'dip', via:'K0', approach:GYM_IN });
+for (const dx of [-.9,.05]) SLOTS.stroll.push({ pos:[GYM.x+dx,0,GYM.z+.75], ry:0, pose:'stretch', via:'K0', approach:GYM_IN });
+SLOTS.stroll.push({ pos:[GYM.x-1.35,0,GYM.z-.9], ry:Math.PI, pose:'situp', seat:.42, via:'K0', approach:GYM_IN });
 const faceTo = (x,z,tx,tz) => Math.atan2(tx-x, tz-z);
 // 야간 책상 불빛 (앉아 있는 자리만)
 // 밤에 앉은 책상만 불빛 (머리 위 빛기둥 + 책상 위 불빛). 스탠드 모델은 2026-11-18 삭제
@@ -1187,7 +1205,7 @@ function buildChars(list){
   });
   // 책상 중복 방지
   const used = new Set();
-  for (const c of chars) if (c.deskPref >= 0 && !used.has(c.deskPref)) { c.deskIdx = c.deskPref; used.add(c.deskPref); }   // 고른 자리 먼저
+  for (const c of chars) if (c.deskPref >= 0 && c.deskPref < SLOTS.work.length && !used.has(c.deskPref)) { c.deskIdx = c.deskPref; used.add(c.deskPref); }   // 고른 자리 먼저
   let nx = 0; for (const c of chars) if (c.deskIdx < 0) { while (used.has(nx)) nx++; c.deskIdx = nx; used.add(nx); }      // 나머지는 앞자리부터
   for (const c of chars) { const s = claimSlot(c, c.status); placeAt(c, s); }
   if (!chars.find(c => c.id === selectedId)) selectedId = null;
@@ -1329,6 +1347,9 @@ function animateChar(c, t, dt){
     case 'sleep': { const s = c.look.scale; T.y = c.slot.bed + .24*s - .3*s; T.tilt = -Math.PI/2 + .06; T.legL = T.legR = -Math.PI/2 + .06; T.armLx = T.armRx = -.15 + Math.sin(tt*1.4)*.03; T.armLz = .35; T.armRz = -.35; T.headX = -.25; T.headY = Math.sin(tt*.25)*.15; break; }
     case 'petcat': { const s = c.look.scale; T.y = -.13*s; T.legL = T.legR = -1.3; T.tilt = .38; T.armRx = -1.05 + Math.sin(tt*3)*.28; T.armRz = -.05; T.armLx = -.7; T.armLz = .3; T.headX = .3; T.headY = Math.sin(tt*.6)*.15; break; }
     case 'wand': T.wand = true; T.armRx = -1.45 + Math.sin(tt*6)*.45; T.armRz = -.15 + Math.sin(tt*3.3)*.4; T.armLx = -.3; T.headX = .22; T.y = Math.abs(Math.sin(tt*3))*.02; break;
+    case 'pullup': { const up = (Math.sin(tt*2.2)+1)/2; T.armLx = T.armRx = -3.05; T.armLz = .32 - up*.15; T.armRz = -.32 + up*.15; T.y = .32 + up*.28; T.legL = .35; T.legR = .25; T.headX = -.15; break; } // 철봉 매달려 턱걸이
+    case 'dip': { const up = (Math.sin(tt*2.6)+1)/2; T.armLx = T.armRx = .15; T.armLz = .5; T.armRz = -.5; T.y = .1 + up*.16; T.legL = T.legR = .55; T.headX = -.05; break; } // 평행봉
+    case 'situp': { const up = (Math.sin(tt*2.4)+1)/2; T.y = seatY - .02; T.tilt = -1.35 + up*1.0; T.legL = T.legR = -1.2; T.armLx = T.armRx = -2.4; T.armLz = .9; T.armRz = -.9; break; } // 윗몸일으키기
     case 'lie': T.y = seatY - .02; T.tilt = -1.05; T.legL = T.legR = -1.45; T.armLx = T.armRx = -2.7; T.armLz = .9; T.armRz = -.9; T.headX = .2; break;
     default: T.y = Math.abs(Math.sin(tt*2))*.01; T.headY = Math.sin(tt*.7)*.2;
   }
@@ -1613,7 +1634,7 @@ function catSay(cat, text, ms){ if (cat.bub) cat.bub.remove(); const b = documen
 function spawnHeart(pos, emo){ const el = document.createElement('div'); el.className='heart'; el.textContent=emo; overlay.appendChild(el); hearts.push({ pos, el, life:1.4 }); }
 
 // ================================================================ 라벨
-const ZONE_ANCHORS = { work:[-4.1,2.3,.6], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+4.1,-15.4], vacation:[17.4,2.4,-14.4], stroll:[19.4,2.2,14.4], shred:[-3.4,3.7,-6.2], commute:[-17.35,2.8,-3.2], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
+const ZONE_ANCHORS = { work:[-2.0,2.3,3.4], pantry:[5.9,2.4,-6.9], cafe:[21.0,2.2,2.2], toilet:[-8.1,2.5,-7.0], roof:[-2.5,RY+4.1,-15.4], vacation:[17.4,2.4,-14.4], stroll:[PARK.cx,2.2,PARK.cz], shred:[-3.4,3.7,-6.2], commute:[-17.35,2.8,-3.2], loaf:[TOWER.x-.6,2.9,TOWER.z-.6] };
 const zoneEls = {};
 // 구역 이름표는 없애고, 3D 바닥/건물을 누르면 그 구역으로 이동 (2026-11-18)
 function goZone(key){ const z = SBYKEY[key]; const sel = chars.find(c => c.id === selectedId), me = chars.find(c => c.id === meId);
@@ -1642,7 +1663,7 @@ let zbSig = '';
 function renderZoneBar(){ const zb = document.getElementById('zoneBar'); if (!zb || !isMobile()) return; const counts = countByStatus();
   const sig = STATUSES.map(z => z.key + z.label + (counts[z.key]||0)).join() + focusKey; if (sig === zbSig) return; zbSig = sig;
   zb.innerHTML = `<button data-z="all" style="background:#fff" class="${focusKey ? '' : 'cur'}">🗺️ 전체</button>` + STATUSES.map(z => `<button data-z="${z.key}" style="background:${z.ic}" class="${z.key===focusKey?'cur':''}">${z.emoji} ${z.label} ${counts[z.key]||0}</button>`).join('');
-  zb.querySelectorAll('button').forEach(b => b.onclick = () => { if (b.dataset.z === 'all') { focusKey = null; camFly = { tg:new THREE.Vector3(0,0,-.4), pos:new THREE.Vector3(-6,44,52) }; zbSig = ''; renderZoneBar(); } else focusZone(b.dataset.z); }); }
+  zb.querySelectorAll('button').forEach(b => b.onclick = () => { if (b.dataset.z === 'all') { focusKey = null; camFly = { tg:new THREE.Vector3(2.5,0,1.6), pos:new THREE.Vector3(-3.5,47,56) }; zbSig = ''; renderZoneBar(); } else focusZone(b.dataset.z); }); }
 const COMMUTE_AM = { label:'출근중', sub:'버스 타고 출근하는 중', lines:SBYKEY.commute.lines.slice() };
 const COMMUTE_PM = { label:'퇴근중', sub:'버스 타고 퇴근하는 중', lines:['드디어 퇴근!','오늘도 버텼다','집에 가고 싶다…가는 중이지','저녁 뭐 먹지','내일 또 출근이라니','기사님 집으로 가주세요!'] };
 function kstNow(){ const d = new Date(Date.now() + 9*3600e3); return { h:d.getUTCHours(), m:d.getUTCMinutes(), s:d.getUTCSeconds(), wd:d.getUTCDay() }; }
@@ -1819,7 +1840,7 @@ $('panelTog').onclick = () => setPanel(!$('app').classList.contains('collapsed')
 try { if (localStorage.getItem(PANEL_KEY) === '1') setTimeout(() => setPanel(true), 0); } catch(e){}
 let lowView = false;
 $('lowBtn').onclick = () => { lowView = !lowView; focusKey = null;
-  camFly = lowView ? { tg:new THREE.Vector3(0,6,-3), pos:new THREE.Vector3(-3,1.4,24) } : { tg:new THREE.Vector3(0,0,-.4), pos:new THREE.Vector3(-6,44,52) };
+  camFly = lowView ? { tg:new THREE.Vector3(0,6,-3), pos:new THREE.Vector3(-3,1.4,24) } : { tg:new THREE.Vector3(2.5,0,1.6), pos:new THREE.Vector3(-3.5,47,56) };
   $('lowBtn').textContent = lowView ? '🔭 원래 시점' : '👀 올려보기'; };
 $('liteBtn').onclick = () => { const on = !lite; setLite(on); try { localStorage.setItem(LITE_KEY, on ? '1' : '0'); } catch(e){} liteChosen = on ? '1' : '0'; toast(on ? '🪶 가볍게 보기를 켰어요' : '✨ 원래 화질로 돌아왔어요'); };
 function renderLedUi(){
